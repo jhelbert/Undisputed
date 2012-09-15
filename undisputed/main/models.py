@@ -23,10 +23,11 @@ class Team(models.Model):
 	members = models.ManyToManyField(Player,null=True,blank=True)
 	rating = models.IntegerField(default=2000)
 	k = models.IntegerField(null=True,blank=True)
-	wins = models.IntegerField()
-	losses = models.IntegerField()
-	current_streak = models.IntegerField()
-	longest_streak = models.IntegerField()
+	wins = models.IntegerField(default=0)
+	losses = models.IntegerField(default=0)
+	current_streak = models.IntegerField(default=0)
+	longest_win_streak = models.IntegerField(default=0)
+	longest_loss_streak = models.IntegerField(default=0)
 	ranking = models.IntegerField()
 	def __unicode__(self):
 		return self.name
