@@ -233,6 +233,14 @@ def incoming_text(request):
         winning_team.save()
         losing_team.save()
 
+        teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
+
+        rank = 1
+        for team in teams:
+            team.ranking = rank
+            team.save()
+            rank += 1
+
         account_sid = "AC4854286859444a07a57dfdc44c8eecea"
         auth_token = "e0f79b613153fb5b2525f7552ef8cd1f"
         client = TwilioRestClient(account_sid, auth_token)
