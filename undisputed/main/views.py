@@ -325,12 +325,61 @@ def incoming_text(request):
         print "7"
 
         stats = "Rank:" + str(user_team.ranking) + " (" + str(user_team.rating) + ")\n"
-        stats += "W:" + str(user_team.wins) + "\n"
-        stats += L:" + str(user_team.losses) + "\n"
-        stats += Current Streak:" + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n"
-        stats += Longest Win Streak:" + str(user_team.longest_win_streak) + "\n"
-        stats += Longest Loss Streak:" + str(user_team.longest_loss_streak)"
+        stats += "W:" + str(user_team.wins) + "  L:" + str(user_team.losses) + "\n"
+        stats += "Current Streak:" + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n"
+        stats += "Longest Win Streak:" + str(user_team.longest_win_streak) + "\n"
+        stats += "Longest Loss Streak:" + str(abs(user_team.longest_loss_streak))
         print "8"
+        return HttpResponse(createSmsResponse(stats))
+    elif re.match("^stats [a-zA-z0-9_]+ [a-zA-z0-9_]+$", msg):
+        sections = msg.split(" ")
+        league_name = sections[1]
+        partner_username = sections[2]
+
+        try:
+            user = Player.objects.get(phone_number=number) 
+        except:
+            return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
+
+        try:
+            existing_league = League.objects.get(name=league_name)
+        except:
+            return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
+
+        try:
+            partner = Player.objects.get(username=partner_username)           
+        except:
+            return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
+
+        if existing_league.team_size != 2:
+            return HttpResponse(createSmsResponse(league_name + " is a solo league, and you asked for stats about a partnered league."))
+
+        teams = Team.objects.filter(league=existing_league).all()
+        user_team = None
+        if teams:
+            for team in teams:
+                if user in team.members.all() and partner in team.members.all():
+                    user_team = team
+                    break
+
+        if user_team == None:
+            return HttpResponse(createSmsResponse("You and " + partner_username + " are not a registered team in " + league_name + "."))
+
+        if user_team.current_streak > 1 or user_team.current_streak == 0:
+            streak_suffix = "wins"
+        elif user_team.current_streak == 1:
+            streak_suffix = "win"
+        elif user_team.current_streak == -1:
+            streak_suffix = "loss"
+        else:
+            streak_suffix = "losses"
+
+        stats = "Rank:" + str(user_team.ranking) + " (" + str(user_team.rating) + ")\n"
+        stats += "W:" + str(user_team.wins) + "  L:" + str(user_team.losses) + "\n"
+        stats += "Current Streak:" + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n"
+        stats += "Longest Win Streak:" + str(user_team.longest_win_streak) + "\n"
+        stats += "Longest Loss Streak:" + str(abs(user_team.longest_loss_streak))
+
         return HttpResponse(createSmsResponse(stats))
     elif re.match("^a$", msg):
         return HttpResponse(createSmsResponse(join))
@@ -351,6 +400,8 @@ def incoming_text(request):
         return HttpResponse(createSmsResponse(stats))
     else:
         return HttpResponse(createSmsResponse("Text 'help' to view your options."))
+
+
 
 
 def createSmsResponse(responsestring):
