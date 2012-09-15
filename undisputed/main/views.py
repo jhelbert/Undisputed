@@ -137,19 +137,21 @@ def incoming_text(request):
             print "AA"
             teams = Team.objects.filter(league=existing_league).all()
             print "BB"
-            for team in teams:
-                print "team %s" % team
-                if existing_player in team.members.all():
-                    print "player exists"
-                    try:
-                        print "partner exists"
-                        if partner in team.members.all():
-                            return HttpResponse(createSmsResponse("This team is already in this league"))
-                    except:
-                        print "no partner exists"
-                        return HttpResponse(createSmsResponse("You are already in this league"))
-            winning_team = team
+            if len(teams) > 0:
+                for team in teams:
+                    print "team %s" % team
+                    if existing_player in team.members.all():
+                        print "player exists"
+                        try:
+                            print "partner exists"
+                            if partner in team.members.all():
+                                return HttpResponse(createSmsResponse("This team is already in this league"))
+                        except:
+                            print "no partner exists"
+                            return HttpResponse(createSmsResponse("You are already in this league"))
+            print "CC"
 
+            print "DD"
             new_team = Team(league=existing_league,rating=2000)
             new_team.save()
             new_team.members.add(existing_player)
@@ -238,6 +240,42 @@ def incoming_text(request):
         message = client.sms.messages.create(to=str(loser.phone_number), from_="+19786730440", body="You were defeated by " + winner.username + " in " + league_name)
 
         return HttpResponse(createSmsResponse("Congratulations! Your new rating is A notification was sent to " + loser.username + "."))
+    
+    elif re.match("^rank [a-zA-z0-9_]+$", msg):
+        print "ranking..."
+        league_name = msg.split(" ")[1]
+        print "AA"
+        try:
+            user = Player.objects.get(phone_number=number) 
+        except:
+            return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
+        print "B"
+        try:
+            existing_league = League.objects.get(name=league_name)
+        except:
+            return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
+        print "C"
+        teams = Team.objects.filter(league=existing_league).order_by("rating").all()
+        teams = teams.reverse()
+        print "C2"
+        present = False
+        for team in teams:
+            if user in team.members.all():
+                present = True
+                break
+        print "D"
+        if not present:
+            return HttpResponse(createSmsResponse("You are not registered in " + league_name + ". Please try again"))
+
+        rankings = ""
+        count = 0
+        while len(rankings) < 160 and count < min(10, len(teams)):
+            print rankings
+            rankings += str(count + 1) + ". " + " & ".join([member.username for member in teams[count].members.all()]) + " (" + str(teams[count].rating) + ")\n"
+            count += 1
+        print "E"
+        return HttpResponse(createSmsResponse(rankings))
+
     else:
         return HttpResponse(createSmsResponse("Text 'help' to view your options."))
 
