@@ -21,7 +21,7 @@ class Team(models.Model):
 	league = models.ForeignKey(League)
 	name = models.CharField(max_length=20)
 	members = models.ManyToManyField(Player,null=True,blank=True)
-	rating = models.IntegerField(default=0)
+	rating = models.IntegerField(default=2000)
 	k = models.IntegerField(null=True,blank=True)
 	def __unicode__(self):
 		return self.name
