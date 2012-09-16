@@ -389,13 +389,13 @@ def incoming_text(request):
         else:
             streak_suffix = "losses"
 
-        stats = "Rank: " + user_team.ranking + "\n\
-            Rating: " + user_team.rating + "\n\
-            Wins: " + user_team.wins + "\n\
-            Losses: " + user_team.losses + "\n\
-            Current Streak: " + abs(user_team.current_streak) + " " + streak_suffix + "\n\
-            Longest Winning Streak: " + user_team.longest_win_streak + "\n\
-            Longest Losing Streak: " + user_team.longest_loss_streak
+        stats = "Rank: " + str(user_team.ranking) + "\n\
+            Rating: " + str(user_team.rating) + "\n\
+            Wins: " + str(user_team.wins) + "\n\
+            Losses: " + str(user_team.losses) + "\n\
+            Current Streak: " + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n\
+            Longest Winning Streak: " + str(user_team.longest_win_streak) + "\n\
+            Longest Losing Streak: " + str(user_team.longest_loss_streak)
 
         return HttpResponse(createSmsResponse(stats))
     elif re.match("^a$", msg):
