@@ -209,7 +209,7 @@ def incoming_text(request):
                     break
 
             if losing_team == None:
-                return HttpResponse(createSmsResponse(loser1_username + " and " + loser2_username" are not a registered team in " + league_name + "."))
+                return HttpResponse(createSmsResponse(loser1_username + " and " + loser2_username + " are not a registered team in " + league_name + "."))
 
         else:
             if existing_league.team_size != 1:
@@ -430,13 +430,13 @@ def createSmsResponse(responsestring):
     return html
 
 
-options = "What would you like to do?:\n\
-          (a) Join Undisputed\n\
-          (b) Create League\n\
-          (c) Join League\n\
-          (d) Report Win\n\
-          (e) View Rankings\n\
-          (f) View Personal Stats\n"
+options = "What would you like to do?:\n"
+options += "(a) Join Undisputed\n"
+options += "(b) Create League\n"
+options += "c) Join League\n"
+options += "(d) Report Win\n"
+options += "(e) View Rankings\n"
+options += "(f) View Personal Stats\n"
 
 join = "join undisputed MyUsername MyFirstName MyLastName"
 
