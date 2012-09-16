@@ -313,8 +313,7 @@ def incoming_text(request):
         except:
             return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
         print "C"
-        teams = Team.objects.filter(league=existing_league).order_by("rating").all()
-        teams = teams.reverse()
+        teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
         print "C2"
         present = False
         for team in teams:
@@ -333,87 +332,53 @@ def incoming_text(request):
             count += 1
         print "E"
         return HttpResponse(createSmsResponse(rankings))
-    elif re.match("^stats [a-zA-z0-9_]+$", msg):
-        print "STATS......"
-        league_name = msg.split(" ")[1]
-        print "1"
+    elif re.match("^stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
+        sections = msg.split(" ")
+        league_name = sections[1]
+
         try:
             user = Player.objects.get(phone_number=number) 
         except:
             return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
-        print "2"
+
         try:
             existing_league = League.objects.get(name=league_name)
         except:
             return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
-        print "3"
-        if existing_league.team_size != 1:
-            return HttpResponse(createSmsResponse(league_name + " is a partnered league, and you asked for stats about a solo league."))
-        print "4"
+
         teams = Team.objects.filter(league=existing_league).all()
-        user_team = None
-        print "5"
-        if teams:
-            print teams
+        
+        if len(sections) == 2:
+            if existing_league.team_size != 1:
+                return HttpResponse(createSmsResponse(league_name + " is a partnered league, and you asked for stats about a solo league."))
+
+            user_team = None
             for team in teams:
                 if user in team.members.all():
                     user_team = team
                     break
-        print "6"
-
-        if user_team == None:
-            return HttpResponse(createSmsResponse("You are not a part of " + league_name + "."))
-
-        if user_team.current_streak > 1 or user_team.current_streak == 0:
-            streak_suffix = "wins"
-        elif user_team.current_streak == 1:
-            streak_suffix = "win"
-        elif user_team.current_streak == -1:
-            streak_suffix = "loss"
+                
+                if user_team == None:
+                    return HttpResponse(createSmsResponse("You are not a part of " + league_name + "."))
         else:
-            streak_suffix = "losses"
-        print "7"
+            partner_username = sections[2]
 
-        stats = "Rank:" + str(user_team.ranking) + " (" + str(user_team.rating) + ")\n"
-        stats += "W:" + str(user_team.wins) + "  L:" + str(user_team.losses) + "\n"
-        stats += "Current Streak:" + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n"
-        stats += "Longest Win Streak:" + str(user_team.longest_win_streak) + "\n"
-        stats += "Longest Loss Streak:" + str(abs(user_team.longest_loss_streak))
-        print "8"
-        return HttpResponse(createSmsResponse(stats))
-    elif re.match("^stats [a-zA-z0-9_]+ [a-zA-z0-9_]+$", msg):
-        sections = msg.split(" ")
-        league_name = sections[1]
-        partner_username = sections[2]
+            try:
+                partner = Player.objects.get(username=partner_username)           
+            except:
+                return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
 
-        try:
-            user = Player.objects.get(phone_number=number) 
-        except:
-            return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
+            if existing_league.team_size != 2:
+                return HttpResponse(createSmsResponse(league_name + " is a solo league, and you asked for stats about a partnered league."))
 
-        try:
-            existing_league = League.objects.get(name=league_name)
-        except:
-            return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
-
-        try:
-            partner = Player.objects.get(username=partner_username)           
-        except:
-            return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
-
-        if existing_league.team_size != 2:
-            return HttpResponse(createSmsResponse(league_name + " is a solo league, and you asked for stats about a partnered league."))
-
-        teams = Team.objects.filter(league=existing_league).all()
-        user_team = None
-        if teams:
+            user_team = None
             for team in teams:
                 if user in team.members.all() and partner in team.members.all():
                     user_team = team
                     break
 
-        if user_team == None:
-            return HttpResponse(createSmsResponse("You and " + partner_username + " are not a registered team in " + league_name + "."))
+            if user_team == None:
+                return HttpResponse(createSmsResponse("You and " + partner_username + " are not a registered team in " + league_name + "."))
 
         if user_team.current_streak > 1 or user_team.current_streak == 0:
             streak_suffix = "wins"
@@ -424,11 +389,13 @@ def incoming_text(request):
         else:
             streak_suffix = "losses"
 
-        stats = "Rank:" + str(user_team.ranking) + " (" + str(user_team.rating) + ")\n"
-        stats += "W:" + str(user_team.wins) + "  L:" + str(user_team.losses) + "\n"
-        stats += "Current Streak:" + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n"
-        stats += "Longest Win Streak:" + str(user_team.longest_win_streak) + "\n"
-        stats += "Longest Loss Streak:" + str(abs(user_team.longest_loss_streak))
+        stats = "Rank: " + str(user_team.ranking) + "\n\
+            Rating: " + str(user_team.rating) + "\n\
+            Wins: " + str(user_team.wins) + "\n\
+            Losses: " + str(user_team.losses) + "\n\
+            Current Streak: " + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n\
+            Longest Winning Streak: " + str(user_team.longest_win_streak) + "\n\
+            Longest Losing Streak: " + str(user_team.longest_loss_streak)
 
         return HttpResponse(createSmsResponse(stats))
     elif re.match("^a$", msg):
@@ -450,9 +417,6 @@ def incoming_text(request):
         return HttpResponse(createSmsResponse(stats))
     else:
         return HttpResponse(createSmsResponse("Text 'help' to view your options."))
-
-
-
 
 def createSmsResponse(responsestring):
     impl = getDOMImplementation()
