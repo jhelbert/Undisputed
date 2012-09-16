@@ -241,6 +241,7 @@ def incoming_text(request):
             team.save()
             rank += 1
 
+        winning_team = Team.objects.get(name=winning_team.name,league=winning_team.league)
         account_sid = "AC4854286859444a07a57dfdc44c8eecea"
         auth_token = "e0f79b613153fb5b2525f7552ef8cd1f"
         client = TwilioRestClient(account_sid, auth_token)
