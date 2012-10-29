@@ -47,29 +47,37 @@ def incoming_text(request):
     
     print "incoming...."
     number = request.GET.get('From')
-    msg = request.GET.get('Body')
+    msg = request.GET.get('Body').lower().replace('\n', '')
     sections = msg.split(" ")
-    if re.match("^(?i)join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg): #TODO- all other valid characters, regex check on each section
+    print 'message: ' + msg
+    if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg): #TODO- all other valid characters, regex check on each section
         print "joining undisputed...."
         username = sections[2]
+        print 'username: ' + username
         name = "".join(sections[3:])
+        print 'name: ' + name
         try: 
             player = Player.objects.get(phone_number=number)
             return HttpResponse(createSmsResponse("You have already created an account with username %s" % player.username))
         except:
             pass
+        print 'trying to make an account'
         try:
+            print 'username taken'
             existing_player = Player.objects.get(username=username)
             return HttpResponse(createSmsResponse("username %s already taken, please try another one" % username))
         except:
+            print 'making account'
             new_player = Player(name=name,username=username,phone_number=number)
+            print 'made player object'
             new_player.save()
+            print 'saved player object to db'
             return HttpResponse(createSmsResponse("congrats, here are your options:\n" + options))
 
     #create league [name] [team size] [password]
-    elif re.match("^(?i)options$",msg):
-        return HttpResponse(createSmsResponse(options))
-    elif re.match("^(?i)create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$",msg):  #Todo: league name multiple words?
+    elif re.match("^options$",msg):
+        return HttpResponse(createSmsResponse(options_query + options))
+    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg):  #Todo: league name multiple words?
         print "create league"
         try:
             existing_player = Player.objects.get(phone_number=number)
@@ -96,7 +104,7 @@ def incoming_text(request):
         #TODO: return invalid league name, please try again
 
     #elif team  join league (league name, password):
-    elif re.match("^(?i)join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z0-9_]+)?$",msg):
+    elif re.match("^join( league)? [a-zA-Z0-9_]+ [a-zA-Z0-9_]+(( with)? [a-zA-Z0-9_]+)?$",msg):
         print "joining league....."
         try:
             existing_player = Player.objects.get(phone_number=number)
@@ -153,7 +161,7 @@ def incoming_text(request):
             return HttpResponse(createSmsResponse("league joined"))
         else:
             return HttpResponse(createSmsResponse("invalid password, please try again"))  
-    elif re.match("^(?i)beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
+    elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
         sections = msg.split(" ")
         league_name = sections[-1]
         loser1_username = sections[1]
@@ -299,7 +307,7 @@ def incoming_text(request):
        
             return HttpResponse(createSmsResponse("Congratulations! Notifications were sent to %s, %s, and %s. Your new rating is %s and you are ranked %s." % (partner.username, loser1.username, loser2.username, int(winning_team.rating), winning_team.ranking)))
 
-    elif re.match("^(?i)rank [a-zA-z0-9_]+$", msg):
+    elif re.match("^rank [a-zA-z0-9_]+$", msg):
         print "ranking..."
         league_name = msg.split(" ")[1]
         print "AA"
@@ -332,14 +340,15 @@ def incoming_text(request):
             count += 1
         print "E"
         return HttpResponse(createSmsResponse(rankings))
-    elif re.match("^(?i)stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
+    elif re.match("^stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
+        print 'hit stats handler'
         sections = msg.split(" ")
         league_name = sections[1]
 
         try:
             user = Player.objects.get(phone_number=number) 
         except:
-            return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
+            return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
 
         try:
             existing_league = League.objects.get(name=league_name)
@@ -399,6 +408,7 @@ def incoming_text(request):
 
         return HttpResponse(createSmsResponse(stats))
     elif re.match("^(?i)a$", msg):
+        print 'hit join undisputed'
         return HttpResponse(createSmsResponse(join))
 
     elif re.match("^(?i)b$", msg):
@@ -411,10 +421,10 @@ def incoming_text(request):
         return HttpResponse(createSmsResponse(report))
 
     elif re.match("^(?i)e$", msg):
-        return HttpResponse(createSmsResponse(rankings))
+        return HttpResponse(createSmsResponse('rank MyLeagueName'))
 
     elif re.match("^(?i)f$", msg):
-        return HttpResponse(createSmsResponse(stats))
+        return HttpResponse(createSmsResponse("Solo: stats MyLeagueName\n\nPartnered: stats MyLeagueName PartnerUsername"))
     else:
         return HttpResponse(createSmsResponse("Text 'options' to view your options."))
 
@@ -430,8 +440,8 @@ def createSmsResponse(responsestring):
     return html
 
 
-options = "What would you like to do?:\n"
-options += "(a) Join Undisputed\n"
+options_query = "What would you like to do?:\n"
+options =  "(a) Join Undisputed\n"
 options += "(b) Create League\n"
 options += "(c) Join League\n"
 options += "(d) Report Win\n"
@@ -443,11 +453,11 @@ join = "join undisputed MyUsername MyFirstName MyLastName"
 create = "Solo: create solo league MyLeagueName MyLeaguePassword\n\n\
          Partnered: create partnered league MyLeagueName MyLeaguePassword"
 
-join_league = "Solo: join solo league MyLeagueName MyLeaguePassword\n\n\
-              Partnered: join partnered league MyLeagueName PartnerUsername MyLeaguePassword"
+join_league = "Solo: join league MyLeagueName MyLeaguePassword\n\n\
+              Partnered: join league MyLeagueName MyLeaguePassword with PartnerUsername"
 
-report = "Solo: beat MyLeagueName OpponentUsername\n\n\
-         Partnered: beat MyLeagueName PartnerUsername Opponent1Username Opponent2Username"
+report = "Solo: beat OpponentUsername in MyLeagueName\n\n\
+         Partnered: beat Opponent1Username and Opponent2Username with PartnerUsername in MyLeagueName"
 
 rankings = "rank MyLeagueName"
 
