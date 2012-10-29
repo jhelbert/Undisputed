@@ -256,50 +256,58 @@ rankings = "rank MyLeagueName"
 stats = "Solo: stats MyLeagueName\n\n\
         Partnered: stats MyLeagueName PartnerUsername"
 
-def handle_stats(number,sections, league_name):
-            try:
-            user = Player.objects.get(phone_number=number) 
-        except:
-            return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
+def handle_stats(number, sections, league_name):
+    print 'check if player is registered'
+    try:
+        user = Player.objects.get(phone_number=number) 
+        print 'player is registered'
+    except:
+        print 'player is not registered'
+        return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
 
-        try:
-            existing_league = League.objects.get(name=league_name)
-        except:
-            return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
+    print 'check if league exists'
+    try:
+        existing_league = League.objects.get(name=league_name)
+        print 'league exists'
+    except:
+        print 'league does not exist'
+        return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
 
-        teams = Team.objects.filter(league=existing_league).all()
+    teams = Team.objects.filter(league=existing_league).all()
         
-        if len(sections) == 2:
-            if existing_league.team_size != 1:
-                return HttpResponse(createSmsResponse(league_name + " is a partnered league, and you asked for stats about a solo league."))
+    if len(sections) == 2:
+        print 'stats for individual league'
 
-            user_team = None
-            for team in teams:
-                if user in team.members.all():
-                    user_team = team
-                    break
+        if existing_league.team_size != 1:
+            return HttpResponse(createSmsResponse('If you want stats for a partnered league: stats MyLeagueName PartnerUsername'))
+
+        user_team = None
+        for team in teams:
+            if user in team.members.all():
+                user_team = team
+                break
                 
-                if user_team == None:
-                    return HttpResponse(createSmsResponse("You are not a part of " + league_name + "."))
+        if user_team == None:
+            return HttpResponse(createSmsResponse("You are not a part of " + league_name + "."))
         else:
             partner_username = sections[2]
 
-            try:
-                partner = Player.objects.get(username=partner_username)           
-            except:
-                return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
+        try:
+            partner = Player.objects.get(username=partner_username)           
+        except:
+            return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
 
-            if existing_league.team_size != 2:
-                return HttpResponse(createSmsResponse(league_name + " is a solo league, and you asked for stats about a partnered league."))
+        if existing_league.team_size != 2:
+            return HttpResponse(createSmsResponse(league_name + " is a solo league, and you asked for stats about a partnered league."))
 
-            user_team = None
-            for team in teams:
-                if user in team.members.all() and partner in team.members.all():
-                    user_team = team
-                    break
+        user_team = None
+        for team in teams:
+            if user in team.members.all() and partner in team.members.all():
+                user_team = team
+                break
 
-            if user_team == None:
-                return HttpResponse(createSmsResponse("You and " + partner_username + " are not a registered team in " + league_name + "."))
+        if user_team == None:
+            return HttpResponse(createSmsResponse("You and " + partner_username + " are not a registered team in " + league_name + "."))
 
         if user_team.current_streak > 1 or user_team.current_streak == 0:
             streak_suffix = "wins"
