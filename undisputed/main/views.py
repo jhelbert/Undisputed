@@ -64,7 +64,7 @@ def incoming_text(request):
         except:
             new_player = Player(name=name,username=username,phone_number=number)
             new_player.save()
-            return HttpResponse(createSmsResponse("congrats, here are your options: (...all the options...)"))
+            return HttpResponse(createSmsResponse("congrats, here are your options:\n" + options))
 
     #create league [name] [team size] [password]
     elif re.match("^(?i)options$",msg):
