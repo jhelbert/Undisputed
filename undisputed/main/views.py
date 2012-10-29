@@ -49,7 +49,7 @@ def incoming_text(request):
     number = request.GET.get('From')
     msg = request.GET.get('Body')
     sections = msg.split(" ")
-    if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg): #TODO- all other valid characters, regex check on each section
+    if re.match("^(?i)join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg): #TODO- all other valid characters, regex check on each section
         print "joining undisputed...."
         username = sections[2]
         name = "".join(sections[3:])
@@ -69,7 +69,7 @@ def incoming_text(request):
     #create league [name] [team size] [password]
     elif re.match("^(?i)options$",msg):
         return HttpResponse(createSmsResponse(options))
-    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$",msg):  #Todo: league name multiple words?
+    elif re.match("^(?i)create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$",msg):  #Todo: league name multiple words?
         print "create league"
         try:
             existing_player = Player.objects.get(phone_number=number)
@@ -96,7 +96,7 @@ def incoming_text(request):
         #TODO: return invalid league name, please try again
 
     #elif team  join league (league name, password):
-    elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z0-9_]+)?$",msg):
+    elif re.match("^(?i)join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z0-9_]+)?$",msg):
         print "joining league....."
         try:
             existing_player = Player.objects.get(phone_number=number)
@@ -153,7 +153,7 @@ def incoming_text(request):
             return HttpResponse(createSmsResponse("league joined"))
         else:
             return HttpResponse(createSmsResponse("invalid password, please try again"))  
-    elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
+    elif re.match("^(?i)beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
         sections = msg.split(" ")
         league_name = sections[-1]
         loser1_username = sections[1]
@@ -299,7 +299,7 @@ def incoming_text(request):
        
             return HttpResponse(createSmsResponse("Congratulations! Notifications were sent to %s, %s, and %s. Your new rating is %s and you are ranked %s." % (partner.username, loser1.username, loser2.username, int(winning_team.rating), winning_team.ranking)))
 
-    elif re.match("^rank [a-zA-z0-9_]+$", msg):
+    elif re.match("^(?i)rank [a-zA-z0-9_]+$", msg):
         print "ranking..."
         league_name = msg.split(" ")[1]
         print "AA"
@@ -332,7 +332,7 @@ def incoming_text(request):
             count += 1
         print "E"
         return HttpResponse(createSmsResponse(rankings))
-    elif re.match("^stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
+    elif re.match("^(?i)stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
         sections = msg.split(" ")
         league_name = sections[1]
 
