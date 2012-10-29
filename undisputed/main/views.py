@@ -188,190 +188,76 @@ def incoming_text(request):
         else:
             return HttpResponse(createSmsResponse("invalid password, please try again"))  
     elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
-        sections = msg.split(" ")
-        league_name = sections[-1]
-        loser1_username = sections[1]
-
-        try:
-            winner = Player.objects.get(phone_number=number)
-            print "winner: %s" % winner
-        except:
-            return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
-
-        try:
-            existing_league = League.objects.get(name=league_name)
-        except:
-            return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
-
-        try:
-            loser1 = Player.objects.get(username=loser1_username)
-        except:
-            return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
-
-        teams = Team.objects.filter(league=existing_league).all()
-        
-        if len(sections) == 8:
-            loser2_username = sections[3]
-            partner_username= sections[5]
-
-            try:
-                partner = Player.objects.get(username=partner_username)           
-            except:
-                return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
-
-            try:
-                loser2 = Player.objects.get(username=loser2_username)           
-            except:
-                return HttpResponse(createSmsResponse(loser2_username + " does not exist. Please try again."))
-
-            if existing_league.team_size != 2:
-                return HttpResponse(createSmsResponse(league_name + " is a partnered league, and you reported a solo win."))
-
-            winning_team = None
-            for team in teams:
-                if winner in team.members.all() and partner in team.members.all():
-                    winning_team = team
-                    break
-
-            if winning_team == None:
-                return HttpResponse(createSmsResponse("You and " + partner_username + " are not in a registered team in " + league_name + ". Please try again"))
-    
-            losing_team = None
-            for team in teams:
-                if loser1 in team.members.all() and loser2 in team.members.all():
-                    losing_team = team
-                    break
-
-            if losing_team == None:
-                return HttpResponse(createSmsResponse(loser1_username + " and " + loser2_username + " are not a registered team in " + league_name + "."))
-
-        else:
-            if existing_league.team_size != 1:
-                return HttpResponse(createSmsResponse(league_name + " is a solo league, and you reported a partnered win."))
-
-            winning_team = None
-            for team in teams:
-                print "team %s" % team
-                if winner in team.members.all():
-                    winning_team = team
-                    print "winning_team: %s" % winning_team
-                    break
-
-            if winning_team == None:
-                return HttpResponse(createSmsResponse("You are not in " + league_name + ". Please try again"))
-
-            losing_team = None
-            for team in teams:
-                if loser in team.members.all():
-                    losing_team = team
-                    print "losing_team: %s" % losing_team
-                    break
-
-            if losing_team == None:
-                return HttpResponse(createSmsResponse(loser_username + " is not in " + league_name + "."))
-
-        new_result = Result(league=existing_league, winner=winning_team, loser=losing_team, time=datetime.now())
-        new_result.save()
-        print "continue 3"
-        old_winner_rating = winning_team.rating
-        old_loser_rating = losing_team.rating
-        print "continue 4"
-        spread = 1000.0
-        volatility = 80.0
-        print "continue 5"
-        q_winner = 10**(old_winner_rating/spread)
-        q_loser = 10**(old_loser_rating/spread)
-        expected_winner = q_winner / (q_winner + q_loser)
-        expected_loser = q_loser / (q_winner + q_loser)
-        print "continue 6"
-        new_winner_rating = old_winner_rating + volatility * (1 - expected_winner)
-        new_loser_rating = old_loser_rating + volatility * (0 - expected_loser)
-        print "continue 7"
-        winning_team.rating = new_winner_rating
-        losing_team.rating = new_loser_rating
-        print "winning_team.rating %s" % winning_team.rating
-        print "losing_team.rating %s" % losing_team.rating
-
-        winning_team.wins += 1
-        losing_team.losses += 1
-        if winning_team.current_streak > 0:
-            winning_team.current_streak += 1
-        else:
-            winning_team.current_streak = 1
-        winning_team.longest_win_streak = max(winning_team.longest_win_streak,winning_team.current_streak)
-        if losing_team.current_streak < 0:
-            losing_team.current_streak -= 1
-        else:
-            losing_team.current_streak = -1
-        losing_team.longest_loss_streak = min(losing_team.longest_loss_streak,losing_team.current_streak)
-        winning_team.save()
-        losing_team.save()
-
-        teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
-
-        rank = 1
-        for team in teams:
-            team.ranking = rank
-            team.save()
-            rank += 1
-
-        winning_team = Team.objects.get(league=existing_league, name=winning_team.name)
-        losing_team = Team.objects.get(league=existing_league, name=losing_team.name)
-
-        account_sid = "AC4854286859444a07a57dfdc44c8eecea"
-        auth_token = "e0f79b613153fb5b2525f7552ef8cd1f"
-        client = TwilioRestClient(account_sid, auth_token)
-     
-        if existing_league.team_size == 1:
-            client.sms.messages.create(to=str(loser.phone_number), from_="+19786730440", body="You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username, existing_league.name, int(losing_team.rating), losing_team.ranking))
-
-            return HttpResponse(createSmsResponse("Congratulations! Your new rating is %s and your are ranked %s in %s. A notification was sent to %s." % (int(winning_team.rating),winning_team.ranking,winning_team.league,loser.username)))
-        else:
-            client.sms.messages.create(to=str(loser1.phone_number), from_="+19786730440", body="You and %s were defeated by %s and %s in %s. Your new rating is %s and you are ranked %s." % (loser2.username, winner.username, partner.username, league_name, int(losing_team.rating), losing_team.ranking))
-            client.sms.messages.create(to=str(loser2.phone_number), from_="+19786730440", body="You and %s were defeated by %s and %s in %s. Your new rating is %s and you are ranked %s." % (loser1.username, winner.username, partner.username, league_name, int(losing_team.rating), losing_team.ranking))
-            client.sms.messages.create(to=str(partner.phone_number), from_="+19786730440", body="You and %s defeated %s and %s in %s. Your new rating is %s and you are ranked %s." % (winner.username, loser1.username, loser2.username, league_name, int(winning_team.rating), winning_team.ranking))
-       
-            return HttpResponse(createSmsResponse("Congratulations! Notifications were sent to %s, %s, and %s. Your new rating is %s and you are ranked %s." % (partner.username, loser1.username, loser2.username, int(winning_team.rating), winning_team.ranking)))
-
+        return handle_win(number, sections)
     elif re.match("^rank [a-zA-z0-9_]+$", msg):
-        print "ranking..."
-        league_name = msg.split(" ")[1]
-        print "AA"
-        try:
-            user = Player.objects.get(phone_number=number) 
-        except:
-            return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
-        print "B"
-        try:
-            existing_league = League.objects.get(name=league_name)
-        except:
-            return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
-        print "C"
-        teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
-        print "C2"
-        present = False
-        for team in teams:
-            if user in team.members.all():
-                present = True
-                break
-        print "D"
-        if not present:
-            return HttpResponse(createSmsResponse("You are not registered in " + league_name + ". Please try again"))
-
-        rankings = ""
-        count = 0
-        while len(rankings) < 160 and count < min(10, len(teams)):
-            print rankings
-            rankings += str(count + 1) + ". " + " & ".join([member.username for member in teams[count].members.all()]) + " (" + str(teams[count].rating) + ")\n"
-            count += 1
-        print "E"
-        return HttpResponse(createSmsResponse(rankings))
+        return handle_rank(number,sections)
     elif re.match("^stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
         print 'hit stats handler'
         sections = msg.split(" ")
         league_name = sections[1]
 
-        try:
+        return handle_stats(number,sections, league_name)
+
+
+    elif re.match("^(?i)a$", msg):
+        print 'hit join undisputed'
+        return HttpResponse(createSmsResponse(join))
+
+    elif re.match("^(?i)b$", msg):
+        return HttpResponse(createSmsResponse(create))
+
+    elif re.match("^(?i)c$", msg):
+        return HttpResponse(createSmsResponse(join_league))
+
+    elif re.match("^(?i)d$", msg):
+        return HttpResponse(createSmsResponse(report))
+
+    elif re.match("^(?i)e$", msg):
+        return HttpResponse(createSmsResponse('rank MyLeagueName'))
+
+    elif re.match("^(?i)f$", msg):
+        return HttpResponse(createSmsResponse("Solo: stats MyLeagueName\n\nPartnered: stats MyLeagueName PartnerUsername"))
+    else:
+        return HttpResponse(createSmsResponse("Text 'options' to view your options."))
+
+def createSmsResponse(responsestring):
+    impl = getDOMImplementation()
+    responsedoc = impl.createDocument(None,"Response",None)
+    top_element = responsedoc.documentElement
+    sms_element = responsedoc.createElement("Sms")
+    top_element.appendChild(sms_element)
+    text_node = responsedoc.createTextNode(responsestring)
+    sms_element.appendChild(text_node)
+    html = responsedoc.toxml(encoding="utf-8")
+    return html
+
+
+options_query = "What would you like to do?:\n"
+options =  "(a) Join Undisputed\n"
+options += "(b) Create League\n"
+options += "(c) Join League\n"
+options += "(d) Report Win\n"
+options += "(e) View Rankings\n"
+options += "(f) View Personal Stats\n"
+
+join = "join undisputed MyUsername MyFirstName MyLastName"
+
+create = "Solo: create solo league MyLeagueName MyLeaguePassword\n\n\
+         Partnered: create partnered league MyLeagueName MyLeaguePassword"
+
+join_league = "Solo: join league MyLeagueName MyLeaguePassword\n\n\
+              Partnered: join league MyLeagueName MyLeaguePassword with PartnerUsername"
+
+report = "Solo: beat OpponentUsername in MyLeagueName\n\n\
+         Partnered: beat Opponent1Username and Opponent2Username with PartnerUsername in MyLeagueName"
+
+rankings = "rank MyLeagueName"
+
+stats = "Solo: stats MyLeagueName\n\n\
+        Partnered: stats MyLeagueName PartnerUsername"
+
+def handle_stats(number,sections, league_name):
+            try:
             user = Player.objects.get(phone_number=number) 
         except:
             return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
@@ -433,60 +319,184 @@ def incoming_text(request):
             Longest Losing Streak: " + str(user_team.longest_loss_streak)
 
         return HttpResponse(createSmsResponse(stats))
-    elif re.match("^(?i)a$", msg):
-        print 'hit join undisputed'
-        return HttpResponse(createSmsResponse(join))
 
-    elif re.match("^(?i)b$", msg):
-        return HttpResponse(createSmsResponse(create))
+def handle_rank(number, sections):
+    print "ranking..."
+    league_name = sections[1]
+    print "AA"
+    try:
+        user = Player.objects.get(phone_number=number) 
+    except:
+        return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
+    print "B"
+    try:
+        existing_league = League.objects.get(name=league_name)
+    except:
+        return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
+    print "C"
+    teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
+    print "C2"
+    present = False
+    for team in teams:
+        if user in team.members.all():
+            present = True
+            break
+    print "D"
+    if not present:
+        return HttpResponse(createSmsResponse("You are not registered in " + league_name + ". Please try again"))
 
-    elif re.match("^(?i)c$", msg):
-        return HttpResponse(createSmsResponse(join_league))
+    rankings = ""
+    count = 0
+    while len(rankings) < 160 and count < min(10, len(teams)):
+        print rankings
+        rankings += str(count + 1) + ". " + " & ".join([member.username for member in teams[count].members.all()]) + " (" + str(teams[count].rating) + ")\n"
+        count += 1
+    print "E"
+    return HttpResponse(createSmsResponse(rankings))
 
-    elif re.match("^(?i)d$", msg):
-        return HttpResponse(createSmsResponse(report))
+def handle_win(number, sections):
 
-    elif re.match("^(?i)e$", msg):
-        return HttpResponse(createSmsResponse('rank MyLeagueName'))
+    league_name = sections[-1]
+    loser1_username = sections[1]
 
-    elif re.match("^(?i)f$", msg):
-        return HttpResponse(createSmsResponse("Solo: stats MyLeagueName\n\nPartnered: stats MyLeagueName PartnerUsername"))
+    try:
+        winner = Player.objects.get(phone_number=number)
+        print "winner: %s" % winner
+    except:
+        return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
+
+    try:
+        existing_league = League.objects.get(name=league_name)
+    except:
+        return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
+
+    try:
+        loser1 = Player.objects.get(username=loser1_username)
+    except:
+        return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
+
+    teams = Team.objects.filter(league=existing_league).all()
+    
+    if len(sections) == 8:
+        loser2_username = sections[3]
+        partner_username= sections[5]
+
+        try:
+            partner = Player.objects.get(username=partner_username)           
+        except:
+            return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
+
+        try:
+            loser2 = Player.objects.get(username=loser2_username)           
+        except:
+            return HttpResponse(createSmsResponse(loser2_username + " does not exist. Please try again."))
+
+        if existing_league.team_size != 2:
+            return HttpResponse(createSmsResponse(league_name + " is a partnered league, and you reported a solo win."))
+
+        winning_team = None
+        for team in teams:
+            if winner in team.members.all() and partner in team.members.all():
+                winning_team = team
+                break
+
+        if winning_team == None:
+            return HttpResponse(createSmsResponse("You and " + partner_username + " are not in a registered team in " + league_name + ". Please try again"))
+
+        losing_team = None
+        for team in teams:
+            if loser1 in team.members.all() and loser2 in team.members.all():
+                losing_team = team
+                break
+
+        if losing_team == None:
+            return HttpResponse(createSmsResponse(loser1_username + " and " + loser2_username + " are not a registered team in " + league_name + "."))
+
     else:
-        return HttpResponse(createSmsResponse("Text 'options' to view your options."))
+        if existing_league.team_size != 1:
+            return HttpResponse(createSmsResponse(league_name + " is a solo league, and you reported a partnered win."))
 
-def createSmsResponse(responsestring):
-    impl = getDOMImplementation()
-    responsedoc = impl.createDocument(None,"Response",None)
-    top_element = responsedoc.documentElement
-    sms_element = responsedoc.createElement("Sms")
-    top_element.appendChild(sms_element)
-    text_node = responsedoc.createTextNode(responsestring)
-    sms_element.appendChild(text_node)
-    html = responsedoc.toxml(encoding="utf-8")
-    return html
+        winning_team = None
+        for team in teams:
+            print "team %s" % team
+            if winner in team.members.all():
+                winning_team = team
+                print "winning_team: %s" % winning_team
+                break
 
+        if winning_team == None:
+            return HttpResponse(createSmsResponse("You are not in " + league_name + ". Please try again"))
 
-options_query = "What would you like to do?:\n"
-options =  "(a) Join Undisputed\n"
-options += "(b) Create League\n"
-options += "(c) Join League\n"
-options += "(d) Report Win\n"
-options += "(e) View Rankings\n"
-options += "(f) View Personal Stats\n"
+        losing_team = None
+        for team in teams:
+            if loser in team.members.all():
+                losing_team = team
+                print "losing_team: %s" % losing_team
+                break
 
-join = "join undisputed MyUsername MyFirstName MyLastName"
+        if losing_team == None:
+            return HttpResponse(createSmsResponse(loser_username + " is not in " + league_name + "."))
 
-create = "Solo: create solo league MyLeagueName MyLeaguePassword\n\n\
-         Partnered: create partnered league MyLeagueName MyLeaguePassword"
+    new_result = Result(league=existing_league, winner=winning_team, loser=losing_team, time=datetime.now())
+    new_result.save()
+    print "continue 3"
+    old_winner_rating = winning_team.rating
+    old_loser_rating = losing_team.rating
+    print "continue 4"
+    spread = 1000.0
+    volatility = 80.0
+    print "continue 5"
+    q_winner = 10**(old_winner_rating/spread)
+    q_loser = 10**(old_loser_rating/spread)
+    expected_winner = q_winner / (q_winner + q_loser)
+    expected_loser = q_loser / (q_winner + q_loser)
+    print "continue 6"
+    new_winner_rating = old_winner_rating + volatility * (1 - expected_winner)
+    new_loser_rating = old_loser_rating + volatility * (0 - expected_loser)
+    print "continue 7"
+    winning_team.rating = new_winner_rating
+    losing_team.rating = new_loser_rating
+    print "winning_team.rating %s" % winning_team.rating
+    print "losing_team.rating %s" % losing_team.rating
 
-join_league = "Solo: join league MyLeagueName MyLeaguePassword\n\n\
-              Partnered: join league MyLeagueName MyLeaguePassword with PartnerUsername"
+    winning_team.wins += 1
+    losing_team.losses += 1
+    if winning_team.current_streak > 0:
+        winning_team.current_streak += 1
+    else:
+        winning_team.current_streak = 1
+    winning_team.longest_win_streak = max(winning_team.longest_win_streak,winning_team.current_streak)
+    if losing_team.current_streak < 0:
+        losing_team.current_streak -= 1
+    else:
+        losing_team.current_streak = -1
+    losing_team.longest_loss_streak = min(losing_team.longest_loss_streak,losing_team.current_streak)
+    winning_team.save()
+    losing_team.save()
 
-report = "Solo: beat OpponentUsername in MyLeagueName\n\n\
-         Partnered: beat Opponent1Username and Opponent2Username with PartnerUsername in MyLeagueName"
+    teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
 
-rankings = "rank MyLeagueName"
+    rank = 1
+    for team in teams:
+        team.ranking = rank
+        team.save()
+        rank += 1
 
-stats = "Solo: stats MyLeagueName\n\n\
-        Partnered: stats MyLeagueName PartnerUsername"
+    winning_team = Team.objects.get(league=existing_league, name=winning_team.name)
+    losing_team = Team.objects.get(league=existing_league, name=losing_team.name)
+
+    account_sid = "AC4854286859444a07a57dfdc44c8eecea"
+    auth_token = "e0f79b613153fb5b2525f7552ef8cd1f"
+    client = TwilioRestClient(account_sid, auth_token)
+ 
+    if existing_league.team_size == 1:
+        client.sms.messages.create(to=str(loser.phone_number), from_="+19786730440", body="You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username, existing_league.name, int(losing_team.rating), losing_team.ranking))
+
+        return HttpResponse(createSmsResponse("Congratulations! Your new rating is %s and your are ranked %s in %s. A notification was sent to %s." % (int(winning_team.rating),winning_team.ranking,winning_team.league,loser.username)))
+    else:
+        client.sms.messages.create(to=str(loser1.phone_number), from_="+19786730440", body="You and %s were defeated by %s and %s in %s. Your new rating is %s and you are ranked %s." % (loser2.username, winner.username, partner.username, league_name, int(losing_team.rating), losing_team.ranking))
+        client.sms.messages.create(to=str(loser2.phone_number), from_="+19786730440", body="You and %s were defeated by %s and %s in %s. Your new rating is %s and you are ranked %s." % (loser1.username, winner.username, partner.username, league_name, int(losing_team.rating), losing_team.ranking))
+        client.sms.messages.create(to=str(partner.phone_number), from_="+19786730440", body="You and %s defeated %s and %s in %s. Your new rating is %s and you are ranked %s." % (winner.username, loser1.username, loser2.username, league_name, int(winning_team.rating), winning_team.ranking))
+   
+        return HttpResponse(createSmsResponse("Congratulations! Notifications were sent to %s, %s, and %s. Your new rating is %s and you are ranked %s." % (partner.username, loser1.username, loser2.username, int(winning_team.rating), winning_team.ranking)))
 
