@@ -67,7 +67,7 @@ def incoming_text(request):
             return HttpResponse(createSmsResponse("congrats, here are your options: (...all the options...)"))
 
     #create league [name] [team size] [password]
-    elif re.match("^options$",msg):
+    elif re.match("^(?i)options$",msg):
         return HttpResponse(createSmsResponse(options))
     elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$",msg):  #Todo: league name multiple words?
         print "create league"
