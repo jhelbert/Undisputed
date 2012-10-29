@@ -416,7 +416,7 @@ def incoming_text(request):
     elif re.match("^f$", msg):
         return HttpResponse(createSmsResponse(stats))
     else:
-        return HttpResponse(createSmsResponse("Text 'help' to view your options."))
+        return HttpResponse(createSmsResponse("Text 'options' to view your options."))
 
 def createSmsResponse(responsestring):
     impl = getDOMImplementation()
@@ -433,7 +433,7 @@ def createSmsResponse(responsestring):
 options = "What would you like to do?:\n"
 options += "(a) Join Undisputed\n"
 options += "(b) Create League\n"
-options += "c) Join League\n"
+options += "(c) Join League\n"
 options += "(d) Report Win\n"
 options += "(e) View Rankings\n"
 options += "(f) View Personal Stats\n"
