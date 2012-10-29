@@ -125,8 +125,9 @@ def incoming_text(request):
         print "passcode: %s" % passcode
         if existing_league.passcode == passcode:
             if len(sections) >3:
-                partner_name = sections[-1]
+                partner_name = " ".join(sections[3:])
                 print "partner %s" % partner_name
+                #TODO: look up by username if collision
                 try:
                     partner = Player.objects.get(name=partner_name)
                 except:
