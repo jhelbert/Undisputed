@@ -405,7 +405,7 @@ def incoming_text(request):
         return HttpResponse(createSmsResponse(create))
 
     elif re.match("^(?i)c$", msg):
-        return HttpResponse(createSmsResponse(join))
+        return HttpResponse(createSmsResponse(join_league))
 
     elif re.match("^(?i)d$", msg):
         return HttpResponse(createSmsResponse(report))
@@ -440,17 +440,17 @@ options += "(f) View Personal Stats\n"
 
 join = "join undisputed MyUsername MyFirstName MyLastName"
 
-create = "Solo: create solo league MyLeagueName MyLeaguePassword\n\
+create = "Solo: create solo league MyLeagueName MyLeaguePassword\n\n\
          Partnered: create partnered league MyLeagueName MyLeaguePassword"
 
-join = "Solo: join solo league MyLeagueName MyLeaguePassword\n\
-       Partnered: join partnered league MyLeagueName PartnerUsername MyLeaguePassword"
+join_league = "Solo: join solo league MyLeagueName MyLeaguePassword\n\n\
+              Partnered: join partnered league MyLeagueName PartnerUsername MyLeaguePassword"
 
-report = "Solo: beat MyLeagueName OpponentUsername\n\
+report = "Solo: beat MyLeagueName OpponentUsername\n\n\
          Partnered: beat MyLeagueName PartnerUsername Opponent1Username Opponent2Username"
 
 rankings = "rank MyLeagueName"
 
-stats = "Solo: stats MyLeagueName\n\
+stats = "Solo: stats MyLeagueName\n\n\
         Partnered: stats MyLeagueName PartnerUsername"
 
