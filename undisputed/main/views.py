@@ -65,6 +65,33 @@ def handle_join_undisputed(username, name):
         print 'saved player object to db'
         return HttpResponse(createSmsResponse("congrats, here are your options:\n" + options))
 
+def handle_create_league(number, type, name, password):
+    print 'checking if player exists'
+    try:
+        existing_player = Player.objects.get(phone_number=number)
+        print 'player exists'
+    except:
+        print 'player does not exist'
+        return HttpResponse(createSmsResponse("you should register %s %s" % (team_size,password)))
+    
+    if type == "solo":
+        team_size = 1
+    else:
+        team_size = 2
+
+    print 'check if league already exists'
+    try:
+        existing_league = League.objects.get(name=name)
+        print 'league exists'
+        return HttpResponse(createSmsResponse("league already exists, please enter another name"))
+    except:
+        print "league does not exist, create new one"
+        new_league = League(name=name,team_size=team_size,passcode=password)
+        new_league.save()
+        print "new league saved"
+        return HttpResponse(createSmsResponse("league all set up, tell your friends to join"))
+        #TODO: return invalid league name, please try again
+
 @csrf_exempt
 def incoming_text(request):
     
@@ -92,32 +119,14 @@ def incoming_text(request):
     # create solo|partner|partnered league name password
     elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg):  #Todo: league name multiple words?
         print "create league"
+        type = sections[1]
         name = sections[3]
         password = sections[4]
+        print 'type: ' + type
+        print 'name: ' + name
+        print 'password: ' + password
 
-        try:
-            existing_player = Player.objects.get(phone_number=number)
-        except:
-            return HttpResponse(createSmsResponse("you should register %s %s" % (team_size,password)))
-
-        if sections[1] == "solo":
-            team_size = 1
-        else:
-            team_size = 2
-
-        print password
-        try: 
-            #see if league name already exists
-            existing_league = League.objects.get(name=name)
-            return HttpResponse(createSmsResponse("league already exists, please enter another name"))
-        except:
-            print "create new league"
-            #create new league
-            new_league = League(name=name,team_size=team_size,passcode=password)
-            new_league.save()
-            print "new league saved"
-            return HttpResponse(createSmsResponse("league all set up, tell your friends to join"))
-        #TODO: return invalid league name, please try again
+        return handle_create_league(number, type, name, password)
 
     #elif team  join league (league name, password):
     elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
