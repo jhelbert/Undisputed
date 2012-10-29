@@ -411,7 +411,7 @@ def incoming_text(request):
         return HttpResponse(createSmsResponse(report))
 
     elif re.match("^(?i)e$", msg):
-        return HttpResponse(createSmsResponse('tits'))#rankings))
+        return HttpResponse(createSmsResponse(rankings))
 
     elif re.match("^(?i)f$", msg):
         return HttpResponse(createSmsResponse(stats))
