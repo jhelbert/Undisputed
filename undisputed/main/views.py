@@ -398,22 +398,22 @@ def incoming_text(request):
             Longest Losing Streak: " + str(user_team.longest_loss_streak)
 
         return HttpResponse(createSmsResponse(stats))
-    elif re.match("^a$", msg):
+    elif re.match("^(?i)a$", msg):
         return HttpResponse(createSmsResponse(join))
 
-    elif re.match("^b$", msg):
+    elif re.match("^(?i)b$", msg):
         return HttpResponse(createSmsResponse(create))
 
-    elif re.match("^c$", msg):
+    elif re.match("^(?i)c$", msg):
         return HttpResponse(createSmsResponse(join))
 
-    elif re.match("^d$", msg):
+    elif re.match("^(?i)d$", msg):
         return HttpResponse(createSmsResponse(report))
 
-    elif re.match("^e$", msg):
+    elif re.match("^(?i)e$", msg):
         return HttpResponse(createSmsResponse(rankings))
 
-    elif re.match("^f$", msg):
+    elif re.match("^(?i)f$", msg):
         return HttpResponse(createSmsResponse(stats))
     else:
         return HttpResponse(createSmsResponse("Text 'options' to view your options."))
