@@ -42,53 +42,69 @@ import settings
 
 from twilio.rest import TwilioRestClient
 
+def handle_join_undisputed(username, name):
+    print 'checking if the account already exists'
+    try:
+        player = Player.objects.get(phone_number=number)
+        print 'account exists'
+        return HttpResponse(createSmsResponse("You have already created an account with username %s" % player.username))
+    except:
+        print 'account does not exist'
+        pass
+
+    print 'trying to make an account'
+    try:
+        existing_player = Player.objects.get(username=username)
+        print 'username taken'
+        return HttpResponse(createSmsResponse("username %s already taken, please try another one" % username))
+    except:
+        print 'making account'
+        new_player = Player(name=name,username=username,phone_number=number)
+        print 'made player object'
+        new_player.save()
+        print 'saved player object to db'
+        return HttpResponse(createSmsResponse("congrats, here are your options:\n" + options))
+
 @csrf_exempt
 def incoming_text(request):
     
-    print "incoming...."
+    print "incoming text...."
     number = request.GET.get('From')
     msg = request.GET.get('Body').lower().replace('\n', '')
     sections = msg.split(" ")
+    print 'number: ' + number 
     print 'message: ' + msg
+
+    # join undisputed username firstname lastname
     if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg): #TODO- all other valid characters, regex check on each section
         print "joining undisputed...."
         username = sections[2]
+        name = " ".join(sections[3:])
         print 'username: ' + username
-        name = "".join(sections[3:])
         print 'name: ' + name
-        try: 
-            player = Player.objects.get(phone_number=number)
-            return HttpResponse(createSmsResponse("You have already created an account with username %s" % player.username))
-        except:
-            pass
-        print 'trying to make an account'
-        try:
-            print 'username taken'
-            existing_player = Player.objects.get(username=username)
-            return HttpResponse(createSmsResponse("username %s already taken, please try another one" % username))
-        except:
-            print 'making account'
-            new_player = Player(name=name,username=username,phone_number=number)
-            print 'made player object'
-            new_player.save()
-            print 'saved player object to db'
-            return HttpResponse(createSmsResponse("congrats, here are your options:\n" + options))
 
-    #create league [name] [team size] [password]
+        return handle_join_undisputed(username, name)
+
+    # options
     elif re.match("^options$",msg):
         return HttpResponse(createSmsResponse(options_query + options))
+
+    # create solo|partner|partnered league name password
     elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg):  #Todo: league name multiple words?
         print "create league"
+        name = sections[3]
+        password = sections[4]
+
         try:
             existing_player = Player.objects.get(phone_number=number)
         except:
-            return HttpResponse(createSmsResponse("you should register %s %s" % (team_size,password)))  
-        name = sections[3]
+            return HttpResponse(createSmsResponse("you should register %s %s" % (team_size,password)))
+
         if sections[1] == "solo":
             team_size = 1
         else:
             team_size = 2
-        password = sections[4]
+
         print password
         try: 
             #see if league name already exists
@@ -104,7 +120,7 @@ def incoming_text(request):
         #TODO: return invalid league name, please try again
 
     #elif team  join league (league name, password):
-    elif re.match("^join( league)? [a-zA-Z0-9_]+ [a-zA-Z0-9_]+(( with)? [a-zA-Z0-9_]+)?$",msg):
+    elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
         print "joining league....."
         try:
             existing_player = Player.objects.get(phone_number=number)
@@ -125,7 +141,7 @@ def incoming_text(request):
         print "passcode: %s" % passcode
         if existing_league.passcode == passcode:
             if len(sections) >3:
-                partner_name = " ".join(sections[3:])
+                partner_name = " ".join(sections[4:])
                 print "partner %s" % partner_name
                 #TODO: look up by username if collision
                 try:
