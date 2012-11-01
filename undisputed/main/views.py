@@ -94,8 +94,8 @@ def handle_create_league(number, type, name, password):
 
 @csrf_exempt
 def incoming_text(request):
-    
     print "incoming text...."
+
     number = request.GET.get('From')
     msg = request.GET.get('Body').lower().replace('\n', '')
     sections = msg.split(" ")
@@ -103,8 +103,10 @@ def incoming_text(request):
     print 'message: ' + msg
 
     # join undisputed username firstname lastname
-    if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg): #TODO- all other valid characters, regex check on each section
+    # TODO- all other valid characters, regex check on each section
+    if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg):
         print "joining undisputed...."
+
         username = sections[2]
         name = " ".join(sections[3:])
         print 'username: ' + username
@@ -117,8 +119,10 @@ def incoming_text(request):
         return HttpResponse(createSmsResponse(options_query + options))
 
     # create solo|partner|partnered league name password
-    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg):  #Todo: league name multiple words?
+    # TODO: league name multiple words?
+    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg): 
         print "create league"
+
         type = sections[1]
         name = sections[3]
         password = sections[4]
@@ -128,76 +132,86 @@ def incoming_text(request):
 
         return handle_create_league(number, type, name, password)
 
-    #elif team  join league (league name, password):
+    # join league_name password (with partner):
     elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
         print "joining league....."
+
         try:
             existing_player = Player.objects.get(phone_number=number)
         except:
             return HttpResponse(createSmsResponse("you should register %s %s" % (team_size,password)))
+
         league_name = sections[1]
+        passcode = sections[2]
         print "league name: %s" % league_name
+        print 'passcode: %s' % passcode
+
+        # check if league exists
         try:
             existing_league = League.objects.get(name=league_name)
-            #check for right number of players on team
-            if existing_league.team_size == 1 and len(sections) > 3:
-                return HttpResponse(createSmsResponse("This is only an individual league"))
-            elif existing_league.team_size == 2 and len(sections) == 3:
-                return HttpResponse(createSmsResponse("This is a team league: add your partner too"))
+            # league exists
         except:
-            return HttpResponse(createSmsResponse("invalid team name, please try again"))
-        passcode = sections[2]
-        print "passcode: %s" % passcode
-        if existing_league.passcode == passcode:
-            if len(sections) >3:
-                partner_name = " ".join(sections[4:])
-                print "partner %s" % partner_name
-                #TODO: look up by username if collision
-                try:
-                    partner = Player.objects.get(name=partner_name)
-                except:
-                    return HttpResponse(createSmsResponse("Invalid partner username"))
-            print "AA"
-            teams = Team.objects.filter(league=existing_league).all()
-            print "BB"
-            if len(teams) > 0:
-                for team in teams:
-                    print "team %s" % team
-                    if existing_player in team.members.all():
-                        print "player exists"
-                        try:
-                            print "partner exists"
-                            if partner in team.members.all():
-                                return HttpResponse(createSmsResponse("This team is already in this league"))
-                        except:
-                            print "no partner exists"
-                            return HttpResponse(createSmsResponse("You are already in this league"))
-            print "CC"
+            # league does not exist
+            return HttpResponse(createSmsResponse("This league does not exist. Please try again."))
 
-            print "DD"
+        # check for right number of players on team                                                                                                                                                       
+        if existing_league.team_size == 1 and len(sections) > 3:
+            # trying to join a solo league with a partner
+            return HttpResponse(createSmsResponse("This is a solo league. You can't join with a partner."))
+        elif existing_league.team_size == 2 and len(sections) < 5:
+            # trying to join a partnered league without a partner
+            return HttpResponse(createSmsResponse("This is a team league. Join with a partner."))
+
+        # check for a valid passcode
+        if existing_league.passcode != passcode:
+            # invalid passcode
+            return HttpResponse(createSmsResponse("invalid password, please try again"))
+
+        if existing_league.team_size == 2:
+            partner_name = " ".join(sections[4:])
+            print "partner %s" % partner_name
+
+            # try to get the partner
+            try:
+                # TODO: handle case where more than one player has the same name
+                partner = Player.objects.get(name=partner_name)
+                # partner exists
+            except:
+                # partner does not exist
+                return HttpResponse(createSmsResponse("Invalid partner username"))
+
+            # check if team is already in the league
+            teams = Team.objects.filter(league=existing_league).all()
+            for team in teams:
+                if existing_player in team.members.all() and partner in team.members.all():
+                    # there already exists a team with existing_player and partner
+                    return HttpResponse(createSmsResponse("This team is already in this league"))
+
+            # team does not exist yet. create it
             new_team = Team(league=existing_league,rating=2000)
-            new_team.save()
             new_team.members.add(existing_player)
-            new_team.name = existing_player.name
-            if partner:
-                new_team.members.add(partner)
-                new_team.name = existing_player.name + " and " +  partner.name
+            new_team.members.add(partner)
+            new_team.name = '%s and %s' % existing_player.name, partner.name
             new_team.save()
 
             return HttpResponse(createSmsResponse("league joined"))
         else:
-            return HttpResponse(createSmsResponse("invalid password, please try again"))  
+            # TODO: implement joining solo leagues
+            return HttpResponse(createSmsResponse('joining solo leagues not implemented yet.'))
+
+    # beat opponent1 (and opponent2 with partner )in league_name
     elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
         return handle_win(number, sections)
+
     elif re.match("^rank [a-zA-z0-9_]+$", msg):
         return handle_rank(number,sections)
+
     elif re.match("^stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
         print 'hit stats handler'
         sections = msg.split(" ")
         league_name = sections[1]
 
         return handle_stats(number,sections, league_name)
-
 
     elif re.match("^(?i)a$", msg):
         print 'hit join undisputed'
