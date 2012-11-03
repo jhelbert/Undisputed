@@ -206,6 +206,7 @@ def incoming_text(request):
     elif re.match("^rank [a-zA-z0-9_]+$", msg):
         return handle_rank(number,sections)
 
+    # stats league_name partner_username
     elif re.match("^stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
         print 'hit stats handler'
         sections = msg.split(" ")
@@ -265,65 +266,62 @@ join_league = "Solo: join league MyLeagueName MyLeaguePassword\n\n\
 report = "Solo: beat OpponentUsername in MyLeagueName\n\n\
          Partnered: beat Opponent1Username and Opponent2Username with PartnerUsername in MyLeagueName"
 
-rankings = "rank MyLeagueName"
+rankings = "rank MyLeagueName MyPartnerUsername"
 
 stats = "Solo: stats MyLeagueName\n\n\
         Partnered: stats MyLeagueName PartnerUsername"
 
 def handle_stats(number, sections, league_name):
-    print 'check if player is registered'
+    # check if player is registered
     try:
         user = Player.objects.get(phone_number=number) 
-        print 'player is registered'
+        # player is registered
     except:
-        print 'player is not registered'
+        # player is not registered
         return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
 
-    print 'check if league exists'
+    # check if league exists
     try:
         existing_league = League.objects.get(name=league_name)
-        print 'league exists'
+        # league exists
     except:
-        print 'league does not exist'
+        # league does not exist
         return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
 
     teams = Team.objects.filter(league=existing_league).all()
-        
-    if len(sections) == 2:
-        print 'stats for individual league'
 
-        if existing_league.team_size != 1:
-            return HttpResponse(createSmsResponse('If you want stats for a partnered league: stats MyLeagueName PartnerUsername'))
+    # check for the right team size
+    if len(sections) == 2 and existing_league.team_size != 1:
+        return HttpResponse(createSmsResponse('If you want stats for a partnered league: stats MyLeagueName PartnerUsername'))
+    if len(sections) == 3 and existing_league.team_size != 2:
+        return HttpResponse(createSmsResponse('If you want stats for a solo league: stats MyLeagueName'));
 
-        user_team = None
-        for team in teams:
-            if user in team.members.all():
-                user_team = team
-                break
-                
-        if user_team == None:
-            return HttpResponse(createSmsResponse("You are not a part of " + league_name + "."))
-        else:
-            partner_username = sections[2]
+    # stats for partnered league
+    if existing_league.team_size == 1:
+        partner_username = sections[2]
+        print 'partner username: %s' % partner_username
 
+        # check if the partner exists
         try:
-            partner = Player.objects.get(username=partner_username)           
+            partner = Player.objects.get(username=partner_username)
+            # partner exists
         except:
+            # partner does not exist
             return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
 
-        if existing_league.team_size != 2:
-            return HttpResponse(createSmsResponse(league_name + " is a solo league, and you asked for stats about a partnered league."))
-
+        # find the user and partner's team object
         user_team = None
         for team in teams:
             if user in team.members.all() and partner in team.members.all():
                 user_team = team
                 break
-
-        if user_team == None:
+                
+        # the user's team does not exist
+        if not user_team:
             return HttpResponse(createSmsResponse("You and " + partner_username + " are not a registered team in " + league_name + "."))
 
-        if user_team.current_streak > 1 or user_team.current_streak == 0:
+        # determine the suffix for the win streak
+        if user_team.current_streak > 1 or not user_team.current_streak:
             streak_suffix = "wins"
         elif user_team.current_streak == 1:
             streak_suffix = "win"
@@ -332,48 +330,93 @@ def handle_stats(number, sections, league_name):
         else:
             streak_suffix = "losses"
 
-        stats = "Rank: " + str(user_team.ranking) + "\n\
-            Rating: " + str(user_team.rating) + "\n\
-            Wins: " + str(user_team.wins) + "\n\
-            Losses: " + str(user_team.losses) + "\n\
-            Current Streak: " + str(abs(user_team.current_streak)) + " " + streak_suffix + "\n\
-            Longest Winning Streak: " + str(user_team.longest_win_streak) + "\n\
-            Longest Losing Streak: " + str(user_team.longest_loss_streak)
+        # build up the return string
+        stats =  "Rank: %s\n" % user_team.ranking
+        stats += "Rating: %s\n" % user_team.rating
+        stats += "Wins: %s\n" % user_team.wins
+        stats += "Losses: %s\n" % user_team.losses
+        stats += "Current Streak: %s %s\n" % abs(user_team.current_streak), streak_suffix
+        stats += "Longest Winning Streak: %s\n" % user_team.longest_winning_streak
+        stats += "Longest Losing Streak: %s" % user_team.longest_loss_streak
 
         return HttpResponse(createSmsResponse(stats))
+    
+    # stats for an individual league
+    # TODO: implement this
+    else:
+        return HttpResponse(createSmsResponse('Sorry, this has not been implemented yet.'))
 
+# sections[1] = league name
+# sections[2] = partner username
 def handle_rank(number, sections):
     print "ranking..."
     league_name = sections[1]
-    print "AA"
+    print 'league: %s' % league_name
+
+    # check if the user is registered                        
     try:
-        user = Player.objects.get(phone_number=number) 
+        user = Player.objects.get(phone_number=number)
+        # user is registered
     except:
+        # user is not registered
         return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
-    print "B"
+
+    # check if the league exists
     try:
         existing_league = League.objects.get(name=league_name)
+        # league exists
     except:
+        # league does not exist
         return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
-    print "C"
-    teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
-    print "C2"
-    present = False
-    for team in teams:
-        if user in team.members.all():
-            present = True
-            break
-    print "D"
-    if not present:
-        return HttpResponse(createSmsResponse("You are not registered in " + league_name + ". Please try again"))
 
+    teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
+
+    # get rankings for a partnered league
+    if existing_league.team_size == 2:
+        # check that a partner was specified
+        if len(sections) < 3:
+            return HttpResponse(createSmsResponse('%s is a partnered league and you didn\'t specify a partner. Try: rank MyLeagueName MyPartnerName' % league_name))
+
+        partner_username = sections[2]
+        print 'partner username: %s' partner_username
+
+        # check if the partner exists
+        try:
+            partner = Player.objects.get(username=partner_username)
+            # partner exists
+        except:
+            # partner does not exist
+            return HttpResponse(createSmsResponse(partner_username + " does not exist. Please try again."))
+
+        present = False
+        for team in teams:
+            if user in team.members.all() and partner in team.members.all():
+                present = True
+                break
+
+        if not present:
+            return HttpResponse(createSmsResponse("You and %s are not registered in %s. Please try again." % partner_username, league_name))
+
+    # get rankings for a solo league
+    # TODO: implement this
+    else:
+        return HttpReponse(createSmsResponse('Not implemented yet. Sorry'))
+
+    # build up a string of rankings to return
     rankings = ""
     count = 0
-    while len(rankings) < 160 and count < min(10, len(teams)):
-        print rankings
-        rankings += str(count + 1) + ". " + " & ".join([member.username for member in teams[count].members.all()]) + " (" + str(teams[count].rating) + ")\n"
-        count += 1
-    print "E"
+    # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
+    for count in range(min(10, len(teams))):
+        # TODO: add some defense against people with really long names
+        # build up the next ranking entry
+        next_entry = '%s. %s (%s)\n' % count + 1, teams[count].name, teams[count].rating
+        
+        # if it fits, add it to the response string
+        if len(next_entry) + len(rankings) < 160:
+            rankings += next_entry
+        else:
+            break
+
     return HttpResponse(createSmsResponse(rankings))
 
 def handle_win(number, sections):
