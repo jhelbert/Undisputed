@@ -389,7 +389,7 @@ def handle_rank(number, sections):
             return HttpResponse(createSmsResponse('%s is a partnered league and you didn\'t specify a partner. Try: rank MyLeagueName MyPartnerName' % league_name))
 
         partner_username = sections[2]
-        print 'partner username: %s' partner_username
+        print 'partner username: %s' % partner_username
 
         # check if the partner exists
         try:
