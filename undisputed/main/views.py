@@ -238,9 +238,19 @@ def handle_join_league(number, sections):
         # invalid passcode                                                                                                                                                                           
         return HttpResponse(createSmsResponse("invalid password, please try again"))
 
+    teams = Team.objects.filter(league=existing_league).all()
+        for team in teams:
+           if existing_player in team.members.all():
+               # there already exists a team with existing_player                                                                                                                  
+                return HttpResponse(createSmsResponse("You are already in this league"))
+
+    new_team = Team(league=existing_league,rating=2000)
+    new_team.members.add(existing_player)
+    new_team.name = existing_player.name
+    new_team.save()
 
         # TODO: implement joining solo leagues, look at deleted diff from partnered league                                                                                                                                                      
-    return HttpResponse(createSmsResponse('joining solo leagues not implemented yet.'))
+    return HttpResponse(createSmsResponse('league joined'))
 
 def handle_stats(number, sections):
     # check if player is registered
