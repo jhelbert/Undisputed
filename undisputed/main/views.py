@@ -289,14 +289,19 @@ def handle_rank(number, sections):
         # league exists
     except:
         # league does not exist
-        return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
+        return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))    
 
-    
+    teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
 
     # get rankings for a solo league
-    # TODO: implement this, look at deleted diff
-    else:
-        return HttpReponse(createSmsResponse('Not implemented yet. Sorry'))
+    present = False
+    for team in teams:
+        if user in team.members.all():
+            present = True
+            break
+
+    if not present:
+        return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % league_name))
 
     # build up a string of rankings to return
     rankings = ""
