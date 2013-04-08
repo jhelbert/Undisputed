@@ -52,24 +52,24 @@ client = TwilioRestClient(account_sid, auth_token)
 
 options_query = "What would you like to do?:\n"
 options =  "(a) Join Undisputed\n"
-options += "(b) Create League\n"
-options += "(c) Join League\n"
-options += "(d) Report Win\n"
-options += "(e) View Rankings\n"
-options += "(f) View Personal Stats\n"
+##options += "(b) Create League\n"
+##options += "(c) Join League\n"
+options += "(b) Report Win\n"
+options += "(c) View Rankings\n"
+options += "(d) View Personal Stats\n"
 
-join = "join undisputed MyUsername MyFirstName MyLastName"
+join = "join undisputed username:MyUsername name:MyFirstName MyLastName"
 
 create = "Solo: create solo league MyLeagueName MyLeaguePassword"
 
 
 join_league = "join league MyLeagueName MyLeaguePassword"
 
-report = "beat OpponentUsername in MyLeagueName"
+report = "beat OpponentUsername in CompetitionName"
 
-rankings = "rank MyLeagueName MyPartnerUsername"
+rankings = "CompetitionName rankings"
 
-stats = "stats MyLeagueName"
+stats = "my CompetitionName stats"
 
 @csrf_exempt
 def incoming_text(request):
@@ -106,11 +106,11 @@ def incoming_text(request):
     elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
         return handle_win(number, sections)
 
-    elif re.match("^rank [a-zA-z0-9_]+$", msg):
+    elif re.match("^[a-zA-z0-9_]+ rankings$", msg):
         return handle_rank(number,sections)
 
     # stats league_name partner_username
-    elif re.match("^stats [a-zA-z0-9_]+( [a-zA-z0-9_]+)?$", msg):
+    elif re.match("^my [a-zA-z0-9_]+( [a-zA-z0-9_]+)? stats$", msg):
         print 'hit stats handler'
         sections = msg.split(" ")
         league_name = sections[1]
@@ -121,19 +121,19 @@ def incoming_text(request):
         print 'hit join undisputed'
         return HttpResponse(createSmsResponse(join))
 
-    elif re.match("^(?i)b$", msg):
+    elif re.match("^(?i)e$", msg):
         return HttpResponse(createSmsResponse(create))
 
-    elif re.match("^(?i)c$", msg):
+    elif re.match("^(?i)f$", msg):
         return HttpResponse(createSmsResponse(join_league))
 
-    elif re.match("^(?i)d$", msg):
+    elif re.match("^(?i)b$", msg):
         return HttpResponse(createSmsResponse(report))
 
-    elif re.match("^(?i)e$", msg):
+    elif re.match("^(?i)c$", msg):
         return HttpResponse(createSmsResponse('rank MyLeagueName'))
 
-    elif re.match("^(?i)f$", msg):
+    elif re.match("^(?i)d$", msg):
         return HttpResponse(createSmsResponse("Solo: stats MyLeagueName\n\nPartnered: stats MyLeagueName PartnerUsername"))
 
     else:
@@ -269,45 +269,52 @@ def handle_stats(number, sections):
         return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
 
     # check if league exists
-    league_name = sections[1]
+    competition_name = sections[1]
+    print "competition_name:%s" % competition_name
     try:
-        existing_league = League.objects.get(name=league_name)
+        competition = Competition.objects.get(name=competition_name)
         # league exists
     except:
         # league does not exist
-        return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))
-
-    teams = Team.objects.filter(league=existing_league).all()
-
+        return HttpResponse(createSmsResponse(competition_name + " does not exist. Please try again."))
+    print "got competition"
+    teams = Team.objects.filter(competition=competition).all()
+    print teams
     user_team = None
     for team in teams:
-        if user in team.members.all() and partner in team.members.all():
+        if user.username ==  team.members.username:
             user_team = team
             break
-        
+    print "got teams"    
     # the user's team does not exist
     if not user_team:
-        return HttpResponse(createSmsResponse("You are not a registered team in " + league_name + "."))
-
+        return HttpResponse(createSmsResponse("You are not a registered team in " + competition_name + "."))
+    print 'registed team'
     # determine the suffix for the win streak
+
     if user_team.current_streak > 1 or not user_team.current_streak:
         streak_suffix = "wins"
+        print "wins suffix"
     elif user_team.current_streak == 1:
         streak_suffix = "win"
     elif user_team.current_streak == -1:
         streak_suffix = "loss"
     else:
         streak_suffix = "losses"
-
+    print "got streak suffix"
     # build up the return string
-    stats =  "Rank: %s\n" % user_team.ranking
+    stats =  "Rank: %s / %s\n" % (user_team.ranking, len(teams))
     stats += "Rating: %s\n" % user_team.rating
     stats += "Wins: %s\n" % user_team.wins
+    print "printing wins"
     stats += "Losses: %s\n" % user_team.losses
-    stats += "Current Streak: %s %s\n" % abs(user_team.current_streak), streak_suffix
-    stats += "Longest Winning Streak: %s\n" % user_team.longest_winning_streak
+    print "current_streak b"
+    stats += "Current Streak: %s %s\n" % (abs(user_team.current_streak), streak_suffix)
+    print "current_streak a"
+    stats += "Longest Winning Streak: %s\n" % user_team.longest_win_streak
+    print "current_streak l"
     stats += "Longest Losing Streak: %s" % user_team.longest_loss_streak
-
+    print "got stats"
     # stats for an individual league
     return HttpResponse(createSmsResponse(stats))
 
@@ -315,8 +322,7 @@ def handle_stats(number, sections):
 # sections[2] = partner username
 def handle_rank(number, sections):
     print "ranking..."
-    league_name = sections[1]
-    print 'league: %s' % league_name
+    competition_name = sections[0]
 
     # check if the user is registered                        
     try:
@@ -327,40 +333,35 @@ def handle_rank(number, sections):
         return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
 
     # check if the league exists
-    try:
-        existing_league = League.objects.get(name=league_name)
-        # league exists
-    except:
-        # league does not exist
-        return HttpResponse(createSmsResponse(league_name + " does not exist. Please try again."))    
+    competition = Competition.objects.filter(name=competition_name)
+    teams = Team.objects.filter(competition=competition).order_by("rating").all().reverse()
 
-    teams = Team.objects.filter(league=existing_league).order_by("rating").all().reverse()
-
-    # get rankings for a solo league
+    print "get rankings for a solo league"
     present = False
     for team in teams:
-        if user in team.members.all():
+        if user.username == team.members.username:
             present = True
             break
 
     if not present:
-        return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % league_name))
+        return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % competition_name))
 
-    # build up a string of rankings to return
-    rankings = ""
+    print "build up a string of rankings to return"
+    rankings = ""   
     count = 0
     # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
     for count in range(min(10, len(teams))):
+        print "cpunt:%s" % count
         # TODO: add some defense against people with really long names
         # build up the next ranking entry
-        next_entry = '%s. %s (%s)\n' % count + 1, teams[count].name, teams[count].rating
-        
+        next_entry = '%s. %s (%s)\n' % (count + 1, teams[count].name, teams[count].rating)
+        print next_entry
         # if it fits, add it to the response string
         if len(next_entry) + len(rankings) < 160:
             rankings += next_entry
         else:
             break
-
+    print "got rankings"
     return HttpResponse(createSmsResponse(rankings))
 
 # beat opponent1 (and opponent2 with partner )in league_name
