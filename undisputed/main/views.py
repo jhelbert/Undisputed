@@ -51,12 +51,11 @@ twilio_number = "+19786730440"
 client = TwilioRestClient(account_sid, auth_token)
 
 options_query = "What would you like to do?:\n"
-options =  "(a) Join Undisputed\n"
 ##options += "(b) Create League\n"
 ##options += "(c) Join League\n"
-options += "(b) Report Win\n"
-options += "(c) View Rankings\n"
-options += "(d) View Personal Stats\n"
+options += "(a) Report Win\n"
+options += "(b) View Rankings\n"
+options += "(c) View Personal Stats\n"
 
 join = "join undisputed username:MyUsername name:MyFirstName MyLastName"
 
@@ -81,6 +80,24 @@ def incoming_text(request):
     print 'number: ' + number 
     print 'message: ' + msg
 
+    try:
+        player = Player.objects.get(phone_number=number)
+        if not player.name:
+            player.name = msg
+            player.save()
+            return HttpResponse(createSmsResponse("Hi, %s! Enter a username" % (player.name)))
+        elif not player.username:
+            player.username = msg
+            player.save()
+            return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
+
+    except:
+        print "creating new player"
+        player = Player(phone_number=number)
+        player.save()
+        print "created"
+        return HttpResponse(createSmsResponse("Welcome to Undisputed! What is your name?"))
+
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
     if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg):
@@ -91,17 +108,7 @@ def incoming_text(request):
     elif re.match("^options$",msg):
         return HttpResponse(createSmsResponse(options_query + options))
 
-    # create solo|partner|partnered league name password
-    # TODO: league name multiple words?
-    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg): 
-        print "create league"
-        return handle_create_league(number, sections)
-
-    # join league_name password (with partner):
-    elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
-        print "joining league....."
-        return handle_join_league(number, sections)
-
+   
     # beat opponent1 (and opponent2 with partner )in league_name
     elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
         return handle_win(number, sections)
@@ -117,9 +124,6 @@ def incoming_text(request):
 
         return handle_stats(number,sections)
 
-    elif re.match("^(?i)a$", msg):
-        print 'hit join undisputed'
-        return HttpResponse(createSmsResponse(join))
 
     elif re.match("^(?i)e$", msg):
         return HttpResponse(createSmsResponse(create))
@@ -127,14 +131,28 @@ def incoming_text(request):
     elif re.match("^(?i)f$", msg):
         return HttpResponse(createSmsResponse(join_league))
 
-    elif re.match("^(?i)b$", msg):
+    elif re.match("^(?i)a$", msg):
         return HttpResponse(createSmsResponse(report))
 
-    elif re.match("^(?i)c$", msg):
+    elif re.match("^(?i)b$", msg):
         return HttpResponse(createSmsResponse('rank MyLeagueName'))
 
-    elif re.match("^(?i)d$", msg):
+    elif re.match("^(?i)c$", msg):
         return HttpResponse(createSmsResponse("Solo: stats MyLeagueName\n\nPartnered: stats MyLeagueName PartnerUsername"))
+
+
+
+     # create solo|partner|partnered league name password
+    # TODO: league name multiple words?
+    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg): 
+        print "create league"
+        return handle_create_league(number, sections)
+
+    # join league_name password (with partner):
+    elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
+        print "joining league....."
+        return handle_join_league(number, sections)
+
 
     else:
         return HttpResponse(createSmsResponse("Text 'options' to view your options."))
