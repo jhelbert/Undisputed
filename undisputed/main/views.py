@@ -74,6 +74,24 @@ def incoming_text(request):
     print 'number: ' + number 
     print 'message: ' + msg
 
+    try:
+        player = Player.objects.get(phone_number=number)
+        if not player.name:
+            player.name = msg
+            player.save()
+            return HttpResponse(createSmsResponse("Hi, %s! Enter a username" % (player.name)))
+        elif not player.username:
+            player.username = msg
+            player.save()
+            return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
+
+    except:
+        print "creating new player"
+        player = Player(phone_number=number)
+        player.save()
+        print "created"
+        return HttpResponse(createSmsResponse("Welcome to Undisputed! What is your name?"))
+
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
     if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg):
@@ -110,6 +128,18 @@ def incoming_text(request):
 
     elif re.match("^(?i)d$", msg):
         return HttpResponse(createSmsResponse("my CompetitionName stats"))
+
+     # create solo|partner|partnered league name password
+    # TODO: league name multiple words?
+    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg): 
+        print "create league"
+        return handle_create_league(number, sections)
+
+    # join league_name password (with partner):
+    elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
+        print "joining league....."
+        return handle_join_league(number, sections)
+
 
     else:
         return HttpResponse(createSmsResponse("Text 'options' to view your options."))

@@ -8,9 +8,9 @@ class Competition(models.Model):
 	def __unicode__(self):
 		return self.name
 class Player(models.Model):
-	username = models.CharField(max_length=30)
+	username = models.CharField(max_length=30,null=True,blank=True)
 	phone_number = models.CharField(max_length=20)
-	name = models.CharField(max_length=30)
+	name = models.CharField(max_length=30,null=True,blank=True)
 	request_pending = models.BooleanField()
 	def __unicode__(self):
 		return self.name
