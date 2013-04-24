@@ -94,10 +94,10 @@ def incoming_text(request):
 
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
-    if re.match("^join undisputed [a-zA-Z0-9_]+ [a-zA-Z ]+$",msg):
-        print "joining undisputed...."
-        return handle_join_undisputed(number, sections)
 
+
+    if re.match("^me$",msg):
+        return handle_me(number)
     # options
     elif re.match("^options$",msg):
         return HttpResponse(createSmsResponse(options_query + options))
@@ -155,6 +155,11 @@ def createSmsResponse(responsestring):
     html = responsedoc.toxml(encoding="utf-8")
     return html
 
+
+def handle_me(number):
+    player = Player.objects.get(phone_number=number)
+    text = "Name:%s\n" % player.name
+    text += "username:%s\n" % player.username
 # sections[2] = username                                                                                                                                                                                 
 # " ".join(sections[3:]) = name                                                                                                                                                                          
 def handle_join_undisputed(number, sections):
@@ -443,4 +448,19 @@ def handle_win(number, sections):
     return HttpResponse(
         createSmsResponse(
             "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
+
+
+
+
+
+
+
+def home(request):
+    return render_to_response('home.html', 
+        {
+
+        },
+        context_instance=RequestContext(request))# Create your views here.
+
+
 

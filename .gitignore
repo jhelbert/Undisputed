@@ -1,0 +1,3 @@
+*.pyc
+undisputed/*.pyc
+undisputed/main/migrations/*
