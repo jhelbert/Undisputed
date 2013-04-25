@@ -377,7 +377,7 @@ def handle_win(number, sections):
     print "creating result..."
     # save the result
     #Todo- add teams to result
-    new_result = Result(competition=competition,time=datetime.now())
+    new_result = Result(competition=competition,time=datetime.now(),winner=winning_team,loser=losing_team)
     print "result initialized?"
     new_result.save()
     print "result saved"
