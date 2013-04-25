@@ -15,6 +15,7 @@ class Player(models.Model):
 	def __unicode__(self):
 		return self.name
 
+
 class League(models.Model):
 	competition = models.ForeignKey(Competition,null=True,blank=True)
 	name = models.CharField(max_length=30)
@@ -36,6 +37,7 @@ class Team(models.Model):
 	longest_win_streak = models.IntegerField(default=0)
 	longest_loss_streak = models.IntegerField(default=0)
 	ranking = models.IntegerField(null=True,blank=True)
+	last_results = models.ManyToManyField('Result',null=True,blank=True)
 	def __unicode__(self):
 		return self.name
 

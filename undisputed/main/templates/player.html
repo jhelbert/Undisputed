@@ -1,0 +1,83 @@
+<html>
+<head>
+  <style>
+  
+body {
+	color:black;
+}
+  td {
+  	width:100px;
+  	  text-align: center;
+  vertical-align: middle;
+  font-size: 40px;
+
+}
+
+
+th {
+  padding:20px;
+  font-size:40px;
+    text-align: center;
+  vertical-align: middle;
+
+}
+  </style>
+  </head>
+<body style="background-color:lightgray">
+<div align="center">
+	<span style="font-size:60px">
+	{{player.name}}
+	<br>
+	{{player.username}}</span>
+	</div>
+	<div align="center" style="margin-top:80px">
+		{% for t in teams %}
+<div>
+	        	<td>
+        		<span style="font-size:65px">{{t.competition}}</span>
+        	</td>
+	<table>
+		<tr>
+			<th>
+				Rank
+			</th>
+			<th>
+				Rating
+			</th>
+			<th>
+				Wins
+			</th>
+			<th>
+				Losses
+			</th>
+			<th>
+				Streak
+			</th>
+      
+        <tr>
+
+          <td>
+            {{t.ranking}}
+          </td>
+
+
+        <td>
+          {{t.rating}}
+        </td>
+        <td>
+          {{t.wins}}
+        </td>
+        <td>
+          {{t.losses}}
+        </td>
+        <td>
+          {{t.current_streak}}
+        </td>
+      </tr>
+
+        
+</div>
+{% endfor %}
+</div>
+</body>
+</html>

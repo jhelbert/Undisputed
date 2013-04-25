@@ -355,7 +355,7 @@ def handle_win(number, sections):
         print "initialized"
         new_team.members = winner
         print "winner added?"
-        new_team.name = winner.name
+        new_team.name = winner.username
         print "error on save?"
         new_team.save()
         print "created new winning team"
@@ -453,11 +453,48 @@ def handle_win(number, sections):
 
 
 
+def player(request):
+    username = request.GET.get('username')
+    player = Player.objects.get(username=username)
+    teams = Team.objects.filter(members=player)
+    for t in teams:
+        get_last_ten_results(t)
 
+    return render_to_response('player.html', 
+        {
+            "player":player,
+            "teams":teams
+
+        },
+        context_instance=RequestContext(request))# Create your views here.
+
+def get_last_ten_results(team):
+    results = Result.objects.all()
+    team.last_results.clear()
+    results.reverse()
+    team_results = []
+    count = 0
+    for r in results:
+        if r.winner == team or r.loser:
+            team.last_results.add(r)
+            count += 1
+            if count >= 10:
+                break
+            
+    team.save()
 
 def home(request):
+    competitions = Competition.objects.all()
+    rankings = []
+    for c in competitions:
+        competition_ranking = []
+        teams = Team.objects.filter(competition=c).order_by("rating").all().reverse()
+
+        print teams
     return render_to_response('home.html', 
         {
+            "competitions":competitions,
+            "teams":teams
 
         },
         context_instance=RequestContext(request))# Create your views here.
