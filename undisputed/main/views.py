@@ -244,6 +244,8 @@ def handle_stats(number, sections):
     print "current_streak l"
     stats += "Longest Losing Streak: %s" % user_team.longest_loss_streak
     print "got stats"
+
+    stats += "Brought to you by Nike.\n Just do it"
     # stats for a competition
     return HttpResponse(createSmsResponse(stats))
 
@@ -276,7 +278,7 @@ def handle_rank(number, sections):
         return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % competition_name))
 
     print "build up a string of rankings to return"
-    rankings = "Budweiser %s Rankings" % competition_name 
+    rankings = "Budweiser %s Rankings\n" % competition_name 
     count = 0
     # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
     for count in range(min(10, len(teams))):
