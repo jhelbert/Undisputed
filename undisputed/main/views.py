@@ -242,7 +242,7 @@ def handle_stats(number, sections):
     print "current_streak a"
     stats += "Longest Winning Streak: %s\n" % user_team.longest_win_streak
     print "current_streak l"
-    stats += "Longest Losing Streak: %s" % user_team.longest_loss_streak
+    stats += "Longest Losing Streak: %s\n" % user_team.longest_loss_streak
     print "got stats"
 
     stats += "Brought to you by Nike.\n Just do it"
