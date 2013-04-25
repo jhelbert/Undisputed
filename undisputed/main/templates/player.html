@@ -26,16 +26,16 @@ th {
 <body style="background-color:lightgray">
 <div align="center">
 	<span style="font-size:60px">
-	{{player.name}}
+	{{player.name}}</span>
 	<br>
-	{{player.username}}</span>
+	<span style="">{{player.username}}</span>
 	</div>
 	<div align="center" style="margin-top:80px">
 		{% for t in teams %}
-<div>
-	        	<td>
-        		<span style="font-size:65px">{{t.competition}}</span>
-        	</td>
+<div style="margin:30px;float:left; border:2px blue solid;background-color:#F5FAFF">
+	     
+        		<span style="font-size:65px;clear:both:">{{t.competition}}</span>
+        	
 	<table>
 		<tr>
 			<th>
@@ -74,8 +74,31 @@ th {
           {{t.current_streak}}
         </td>
       </tr>
-
-        
+  </table>
+  <div style="margin-top:50px">
+  	<span style="font-size:20px"><b>Recent Results</b></span>
+  	<br>
+        <table>
+        	<tr>
+        		<th style="font-size:18px;padding:2px;">
+        			Winner
+        		</th>
+        		<th style="font-size:18px;padding:2px;">
+        			Loser
+        		</th>
+        	</tr>
+       	{%for r in t.last_results.all %}
+       	<tr>
+       		<td style="font-size:14px">
+       		 {{r.winner}}
+       		</td>
+       		<td style="font-size:14px">
+       		 {{r.loser }}
+       		</td>
+       	</tr>
+       	{% endfor %}
+       </table>
+</div>
 </div>
 {% endfor %}
 </div>

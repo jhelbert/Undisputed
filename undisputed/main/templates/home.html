@@ -20,63 +20,67 @@ th {
     <span align="center" style="font-size:80px">Undisputed</span>
   </div>
       <div style="margin-left:100px;float:left;clear:both">
-      {% for c in competitions %}
-      <span style="color:darkgreen;font-size:60px">{{c}}</span>
-      <div >
-      {% endfor %}
-      <table style ="font-size:42px;border: 4px solid green">
-      <br>
-      <tr>
-        <th>
-          Rank
-        </th>
-        <th>
-          Player
-        </th>
-        <th>
-          Username
-        </th>
-        <th>
-          Rating
-        </th>
-        <th>
-          Wins
-        </th>
-        <th>
-          Losses
-        </th>
-        <th>
-          Streak
-        </th>
-      </tr>
-      {% for t in teams %}
-      
+      {% for c in rankings %}
+        {% with c|first as img %}
+        <span style="color:darkgreen;font-size:60px">{{img.competition}}</span>
+        {% endwith %}
+        
+        <table style ="font-size:42px;border: 4px solid green">
+        <br>
         <tr>
-          <td>
-            {{t.ranking}}
+          <th>
+            Rank
+          </th>
+          <th>
+            Player
+          </th>
+          <th>
+            Username
+          </th>
+          <th>
+            Rating
+          </th>
+          <th>
+            Wins
+          </th>
+          <th>
+            Losses
+          </th>
+          <th>
+            Streak
+          </th>
+        </tr>
+        {% for t in c %}
+        
+          <tr>
+            <td>
+              {{t.ranking}}
+            </td>
+            <td>
+            <a href="/player/?username={{t.members.username}}">{{t.name}} </a>
           </td>
           <td>
-          <a href="/player/?username={{t.members.username}}">{{t.name}} </a>
-        </td>
-        <td>
-          {{t.members.username }}
+            {{t.members.username }}
 
-        </td>
-        <td>
-          {{t.rating}}
-        </td>
-        <td>
-          {{t.wins}}
-        </td>
-        <td>
-          {{t.losses}}
-        </td>
-        <td>
-          {{t.current_streak}}
-        </td>
-      </tr>
+          </td>
+          <td>
+            {{t.rating}}
+          </td>
+          <td>
+            {{t.wins}}
+          </td>
+          <td>
+            {{t.losses}}
+          </td>
+          <td>
+            {{t.current_streak}}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
 
         {% endfor %}
-      </div>
+
+    </div>
   </body>
   </html>

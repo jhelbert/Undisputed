@@ -469,7 +469,7 @@ def player(request):
         context_instance=RequestContext(request))# Create your views here.
 
 def get_last_ten_results(team):
-    results = Result.objects.all()
+    results = Result.objects.filter(competition=team.competition)
     team.last_results.clear()
     results.reverse()
     team_results = []
@@ -480,7 +480,7 @@ def get_last_ten_results(team):
             count += 1
             if count >= 10:
                 break
-            
+
     team.save()
 
 def home(request):
@@ -489,12 +489,12 @@ def home(request):
     for c in competitions:
         competition_ranking = []
         teams = Team.objects.filter(competition=c).order_by("rating").all().reverse()
-
-        print teams
+        rankings.append(teams)
+    print rankings
     return render_to_response('home.html', 
         {
             "competitions":competitions,
-            "teams":teams
+            "rankings":rankings
 
         },
         context_instance=RequestContext(request))# Create your views here.
