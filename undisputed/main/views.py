@@ -276,7 +276,7 @@ def handle_rank(number, sections):
         return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % competition_name))
 
     print "build up a string of rankings to return"
-    rankings = ""   
+    rankings = "Budweiser %s Rankings" % competition_name 
     count = 0
     # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
     for count in range(min(10, len(teams))):
@@ -447,7 +447,7 @@ def handle_win(number, sections):
     """
     return HttpResponse(
         createSmsResponse(
-            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s.\n " % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
+            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s.\n Brought to you by UnderArmour" % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
 
 
 
