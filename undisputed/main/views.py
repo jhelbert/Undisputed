@@ -447,7 +447,7 @@ def handle_win(number, sections):
     """
     return HttpResponse(
         createSmsResponse(
-            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
+            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s.\n " % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
 
 
 
@@ -475,7 +475,7 @@ def get_last_ten_results(team):
     team_results = []
     count = 0
     for r in results:
-        if r.winner == team or r.loser:
+        if r.winner == team or r.loser == team:
             team.last_results.add(r)
             count += 1
             if count >= 10:
