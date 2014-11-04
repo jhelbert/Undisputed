@@ -1,4 +1,0 @@
-main/migrations/*
-settings.py
-south/*
-*.pyc
