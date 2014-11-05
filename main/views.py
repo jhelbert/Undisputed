@@ -293,7 +293,7 @@ def handle_rank(number, sections):
         # TODO: add some defense against people with really long names
         # build up the next ranking entry
         team = teams[count]
-        next_entry = '%s. %s (%s) %s-%s\n' % (count + 1, team.name, team.rating, team.wins, team.losses)
+        next_entry = '%s. %s (%s) %s-%s\n' % (count + 1, team.name.upper(), team.rating, team.wins, team.losses)
         print next_entry
         # if it fits, add it to the response string
         if len(next_entry) + len(rankings) < 160:
@@ -464,7 +464,7 @@ def handle_win(number, sections):
     """
     return HttpResponse(
         createSmsResponse(
-            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username)))
+            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())))
 
 
 
