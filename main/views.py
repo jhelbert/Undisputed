@@ -28,7 +28,7 @@ from django.core.mail import EmailMessage
 from subprocess import *
 from datetime import *
 from xml.dom.minidom import getDOMImplementation,parse,parseString
-from main.models import Player, Team, Result, Competition
+from main.models import Player, Team, Result, Competition, League
 from random import choice
 import re
 import os
@@ -83,7 +83,7 @@ def incoming_text(request):
         #     player.save()
         #     return HttpResponse(createSmsResponse("Hi, %s! Enter a username" % (player.name)))
         
-        if not player.username:
+        if not player.username:  
             player.username = msg
             player.save()
             return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
@@ -210,7 +210,7 @@ def handle_stats(number, sections):
         # competition does not exist
         return HttpResponse(createSmsResponse(competition_name + " does not exist. Please try again."))
     print "got competition"
-    teams = Team.objects.filter(competition=competition).all()
+    teams = Team.objects.filter(league=league).all()
     print teams
     user_team = None
     for team in teams:
@@ -267,8 +267,11 @@ def handle_rank(number, sections):
         return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
 
     # check if the competition exists
-    competition = Competition.objects.filter(name=competition_name)
-    teams = Team.objects.filter(competition=competition).order_by("rating").all().reverse()
+    try:
+        league = League.objects.get(shorthand_name=competition_name)
+    except:
+        league = League.objects.get(name=competition_name)
+    teams = Team.objects.filter(league=league).order_by("rating").all().reverse()
 
     print "get rankings for a solo competition"
     present = False
@@ -281,13 +284,16 @@ def handle_rank(number, sections):
         return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % competition_name))
 
     print "build up a string of rankings to return"
-    rankings = "%s Rankings\n" % competition_name 
+    print league
+    rankings = "{0} Rankings\n".format(str(league))
+    print rankings
     count = 0
     # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
     for count in range(min(10, len(teams))):
         # TODO: add some defense against people with really long names
         # build up the next ranking entry
-        next_entry = '%s. %s (%s)\n' % (count + 1, teams[count].name, teams[count].rating)
+        team = teams[count]
+        next_entry = '%s. %s (%s) %s-%s\n' % (count + 1, team.name, team.rating, team.wins, team.losses)
         print next_entry
         # if it fits, add it to the response string
         if len(next_entry) + len(rankings) < 160:
@@ -316,16 +322,19 @@ def handle_win(number, sections):
 
     # check if the result is just a competition
     competition_name = sections[-1]
-    print "competition_name:%s" % competition_name
+    print "competition_nameaa:%s" % competition_name
     try:
         try:
-            competition = Competition.objects.get(shorthand_name=competition_name)
+            league = League.objects.get(shorthand_name=competition_name)
         except:
-            competition = Competition.objects.get(name=competition_name)
-        print "got competition"
-    except:
-        #TODO: implement this
-        return HttpResponse(createSmsResponse(competition_name + " does not exist. This has not been implemented. Sorry"))
+            league = League.objects.get(name=competition_name)
+        print league
+    except NameError as e:
+        print e.strerror
+    print "got competition"
+    # except:
+    #     #TODO: implement this
+    #     return HttpResponse(createSmsResponse(competition_name + " does not exist. This has not been implemented. Sorry"))
 
     # check if loser1 exists
     loser_username = sections[1]
@@ -336,9 +345,9 @@ def handle_win(number, sections):
     except:
         # loser1 does not exist
         return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
-
+    print 'got lose'
     
-    teams = Team.objects.filter(competition=competition)    
+    teams = Team.objects.filter(league=league)    
 
     # check that message was not malformed
     if len(sections) != 4:
@@ -358,7 +367,7 @@ def handle_win(number, sections):
 
     if not winning_team:
         print "no winning team"
-        new_team = Team(competition=competition,rating=2000)
+        new_team = Team(league=league,rating=2000)
         print "initialized"
         new_team.members = winner
         print "winner added?"
@@ -376,15 +385,15 @@ def handle_win(number, sections):
             break
 
     if not losing_team:
-        new_l_team = Team(competition=competition,rating=2000)
+        new_l_team = Team(league=league,rating=2000)
         new_l_team.members = loser
-        new_l_team.name = loser.name
+        new_l_team.name = loser.username
         new_l_team.save()
         losing_team = new_l_team
     print "creating result..."
     # save the result
     #Todo- add teams to result
-    new_result = Result(competition=competition,time=datetime.now(),winner=winning_team,loser=losing_team)
+    new_result = Result(league=league,time=datetime.now(),winner=winning_team,loser=losing_team)
     print "result initialized?"
     new_result.save()
     print "result saved"
@@ -431,20 +440,21 @@ def handle_win(number, sections):
     losing_team.save()
 
     # use the new ratings to calculate new rankings
-    teams = Team.objects.filter(competition=competition).order_by("rating").all().reverse()
+    teams = Team.objects.filter(league=league).order_by("rating").all().reverse()
     print "got teams to rank"
+    print teams
     rank = 1
     for team in teams:
         team.ranking = rank
         team.save()
         rank += 1
 
-    # TODO: get teams using team name always?
-    print "getting teams to report to..."
-    winning_team = Team.objects.get(competition=competition, name=winning_team.name)
-    print "got winning team"
-    losing_team = Team.objects.get(competition=competition, name=losing_team.name)
-    print "got teams to report to"
+    # # TODO: get teams using team name always?
+    # print "getting teams to report to..."
+    # winning_team = Team.objects.get(league=league, name=winning_team.name)
+    # print "got winning team"
+    # losing_team = Team.objects.get(league=league, username=losing_team.name)
+    # print "got teams to report to"
     # in the case of a solo competition, send confirmation messages to both parties
     """
     client.sms.messages.create(
@@ -454,7 +464,7 @@ def handle_win(number, sections):
     """
     return HttpResponse(
         createSmsResponse(
-            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
+            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username)))
 
 
 
@@ -476,7 +486,7 @@ def player(request):
         context_instance=RequestContext(request))# Create your views here.
 
 def get_last_ten_results(team):
-    results = Result.objects.filter(competition=team.competition)
+    results = Result.objects.filter(league=team.league)
     team.last_results.clear()
     results.reverse()
     team_results = []

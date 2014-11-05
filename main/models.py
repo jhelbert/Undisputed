@@ -26,7 +26,7 @@ class League(models.Model):
 		return self.name
 
 class Team(models.Model):
-	leagues = models.ManyToManyField(League,null=True,blank=True)
+	league = models.ForeignKey(League,null=True,blank=True)
 	competition = models.ForeignKey(Competition,null=True,blank=True)
 	name = models.CharField(max_length=20)
 	members = models.ForeignKey(Player,null=True,blank=True)
@@ -43,7 +43,7 @@ class Team(models.Model):
 		return self.name
 
 class Result(models.Model):
-	competition = models.ForeignKey(Competition)
+	league = models.ForeignKey(League)
 	winner = models.ForeignKey(Team, related_name="winner",null=True,blank=True)
 	loser = models.ForeignKey(Team, related_name="loser",null=True,blank=True)
 	time = models.DateTimeField()
