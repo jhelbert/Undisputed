@@ -10,5 +10,5 @@ urlpatterns = patterns('',
     url(r'^udadmin/', include(admin.site.urls)),
     url(r'player/','main.views.player'),
     url(r'incoming_text','main.views.incoming_text'),
-    url(r'^','main.views.home')
+    url(r'^$','main.views.home')
 )

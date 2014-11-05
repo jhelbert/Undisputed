@@ -13,11 +13,12 @@ class Player(models.Model):
 	name = models.CharField(max_length=30,null=True,blank=True)
 	request_pending = models.BooleanField()
 	def __unicode__(self):
-		return self.name
+		return self.username
 
 
 class League(models.Model):
 	competition = models.ForeignKey(Competition,null=True,blank=True)
+	shorthand_name = models.CharField(max_length=20,null=True, blank=True)
 	name = models.CharField(max_length=30)
 	passcode = models.CharField(max_length=20)
 	team_size = models.IntegerField()

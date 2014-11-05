@@ -76,11 +76,14 @@ def incoming_text(request):
 
     try:
         player = Player.objects.get(phone_number=number)
-        if not player.name:
-            player.name = msg
-            player.save()
-            return HttpResponse(createSmsResponse("Hi, %s! Enter a username" % (player.name)))
-        elif not player.username:
+
+        # ###
+        # if not player.name:
+        #     player.name = msg
+        #     player.save()
+        #     return HttpResponse(createSmsResponse("Hi, %s! Enter a username" % (player.name)))
+        
+        if not player.username:
             player.username = msg
             player.save()
             return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
@@ -90,7 +93,7 @@ def incoming_text(request):
         player = Player(phone_number=number)
         player.save()
         print "created"
-        return HttpResponse(createSmsResponse("Welcome to Undisputed! What is your name?"))
+        return HttpResponse(createSmsResponse("Welcome to Undisputed. Enter your initials."))
 
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
@@ -278,11 +281,10 @@ def handle_rank(number, sections):
         return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % competition_name))
 
     print "build up a string of rankings to return"
-    rankings = "Budweiser %s Rankings\n" % competition_name 
+    rankings = "%s Rankings\n" % competition_name 
     count = 0
     # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
     for count in range(min(10, len(teams))):
-        print "cpunt:%s" % count
         # TODO: add some defense against people with really long names
         # build up the next ranking entry
         next_entry = '%s. %s (%s)\n' % (count + 1, teams[count].name, teams[count].rating)
@@ -316,7 +318,10 @@ def handle_win(number, sections):
     competition_name = sections[-1]
     print "competition_name:%s" % competition_name
     try:
-        competition = Competition.objects.get(name=competition_name)
+        try:
+            competition = Competition.objects.get(shorthand_name=competition_name)
+        except:
+            competition = Competition.objects.get(name=competition_name)
         print "got competition"
     except:
         #TODO: implement this
@@ -449,7 +454,7 @@ def handle_win(number, sections):
     """
     return HttpResponse(
         createSmsResponse(
-            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s.\n Brought to you by UnderArmour" % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
+            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.competition.name, loser.username)))
 
 
 
