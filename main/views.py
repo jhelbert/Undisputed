@@ -482,12 +482,6 @@ def handle_win(number, sections, loser_submit=False):
     winning_team.save()
     losing_team.save()
 
-    for team in teams:
-        print team.members
-        if str(winner) == str(team.members):
-            print "we found a winnner!"
-            winning_team = team
-            break
 
     # use the new ratings to calculate new rankings
     print "getting ranks"
@@ -500,6 +494,21 @@ def handle_win(number, sections, loser_submit=False):
         team.ranking = rank
         team.save()
         rank += 1
+
+    for team in teams:
+        print team.members
+        if str(winner) == str(team.members):
+            print "we found a winnner!"
+            winning_team = team
+            break
+
+    for team in teams:
+        print team.members
+        if str(loser) == str(team.members):
+            print "we found a loser!"
+            losing_team = team
+            break
+
 
     # # TODO: get teams using team name always?
     # print "getting teams to report to..."
