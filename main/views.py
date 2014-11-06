@@ -482,6 +482,13 @@ def handle_win(number, sections, loser_submit=False):
     winning_team.save()
     losing_team.save()
 
+    for team in teams:
+        print team.members
+        if str(winner) == str(team.members):
+            print "we found a winnner!"
+            winning_team = team
+            break
+
     # use the new ratings to calculate new rankings
     print "getting ranks"
     teams = Team.objects.filter(league=league).order_by("rating").all().reverse()
