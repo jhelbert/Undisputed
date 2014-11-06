@@ -91,7 +91,7 @@ def incoming_text(request):
         if not player.username:
             player.username = msg
             player.save()
-            return HttpResponse(createSmsResponse("commands: \n beat <player> \nrankings\n my stats")
+            return HttpResponse(createSmsResponse("commands: \n beat <player> \nrankings\n my stats"))
             return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
 
     except:
