@@ -91,15 +91,15 @@ def incoming_text(request):
         if not player.username:
             player.username = msg
             player.save()
-            return HttpResponse(createSmsResponse("{0}commands: \n  beat <player> \n  rankings\n  my stats"))
-            return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
+            return HttpResponse(createSmsResponse("commands: \n  beat <player> \n  rankings\n  my stats"))
+            #return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
 
     except:
         print "creating new player"
         player = Player(phone_number=number)
         player.save()
         print "created"
-        return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format))
+        return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format())
 
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
