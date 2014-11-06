@@ -409,7 +409,7 @@ def handle_win(number, sections, loser_submit=False):
 
     if not winning_team:
         print "no winning team"
-        new_team = Team(league=league,rating=2000)
+        new_team = Team(league=league,rating=2000,ranking=100)
         print "initialized"
         new_team.members = winner
         print "winner added?"
@@ -427,14 +427,14 @@ def handle_win(number, sections, loser_submit=False):
             break
 
     if not losing_team:
-        new_l_team = Team(league=league,rating=2000)
+        new_l_team = Team(league=league,rating=2000, ranking=100)
         new_l_team.members = loser
         new_l_team.name = loser.username
         new_l_team.save()
         losing_team = new_l_team
     print "creating result..."
     # save the result
-    #Todo- add teams to result
+    #Todo- add teams to results
     new_result = Result(league=league,time=datetime.now(),winner=winning_team,loser=losing_team)
     print "result initialized?"
     new_result.save()
@@ -445,7 +445,7 @@ def handle_win(number, sections, loser_submit=False):
 
     spread = 1000.0
     volatility = 80.0
-
+    print "a"
     q_winner = 10**(old_winner_rating/spread)
     q_loser = 10**(old_loser_rating/spread)
     expected_winner = q_winner / (q_winner + q_loser)
@@ -456,19 +456,20 @@ def handle_win(number, sections, loser_submit=False):
 
     winning_team.rating = new_winner_rating
     losing_team.rating = new_loser_rating
-
+    print "b"
     # update win-loss counts
     winning_team.wins += 1
     losing_team.losses += 1
-
+    print "c"
     # update streak records for the winning team
     if winning_team.current_streak > 0:
         winning_team.current_streak += 1
     else:
         winning_team.current_streak = 1
-
+    print "d"
     winning_team.longest_win_streak = max(winning_team.longest_win_streak,winning_team.current_streak)
 
+    print "e"
     # update streak records for the losing team
     if losing_team.current_streak < 0:
         losing_team.current_streak -= 1
@@ -482,11 +483,13 @@ def handle_win(number, sections, loser_submit=False):
     losing_team.save()
 
     # use the new ratings to calculate new rankings
+    print "getting ranks"
     teams = Team.objects.filter(league=league).order_by("rating").all().reverse()
     print "got teams to rank"
     print teams
     rank = 1
     for team in teams:
+        print "team"
         team.ranking = rank
         team.save()
         rank += 1
@@ -502,8 +505,13 @@ def handle_win(number, sections, loser_submit=False):
     print winner
     print 'loser'
     print loser
+
     loser_string = "You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username.upper(), league.name, int(losing_team.rating), losing_team.ranking)
+    print loser_string
     winner_string =  "Congrats on beating %s! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())
+
+    print winner_string
+
 
     if loser_submit:
         print "loser_submit"
