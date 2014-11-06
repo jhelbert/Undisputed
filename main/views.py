@@ -111,7 +111,11 @@ def incoming_text(request):
     elif re.match("^options$",msg):
         return HttpResponse(createSmsResponse(options_query + options))
 
-    # team number
+    elif re.match("^lost to [a-zA-z0-9_]+$", msg) and league_from_number:
+        sections = [sections[0], sections[2]]
+        sections.append("in")
+        sections.append(league_from_number)
+        return handle_win(number, sections, True)
 
     elif re.match("^beat [a-zA-z0-9_]+$", msg) and league_from_number:
         sections.append("in")
@@ -334,7 +338,7 @@ def handle_rank(number, sections):
 # if partnered:
 #    sections[3] = loser2
 #    sections[5] = partner
-def handle_win(number, sections):
+def handle_win(number, sections, loser_submit=False):
     # check if the user is registered
     try:
         winner = Player.objects.get(phone_number=number)
@@ -362,7 +366,9 @@ def handle_win(number, sections):
     #     return HttpResponse(createSmsResponse(competition_name + " does not exist. This has not been implemented. Sorry"))
 
     # check if loser1 exists
+
     loser_username = sections[1]
+
     print 'loser: %s' % loser_username
     try:
         loser = Player.objects.get(username=loser_username)
@@ -372,6 +378,10 @@ def handle_win(number, sections):
         return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
     print 'got lose'
 
+    if loser_submit:
+        temp = winner
+        winner = loser
+        loser = temp
     teams = Team.objects.filter(league=league)
 
     # check that message was not malformed
@@ -481,15 +491,33 @@ def handle_win(number, sections):
     # losing_team = Team.objects.get(league=league, username=losing_team.name)
     # print "got teams to report to"
     # in the case of a solo competition, send confirmation messages to both parties
+    print "winner"
+    print winner
+    print 'loser'
+    print loser
+    loser_string = "You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username.upper(), league.name, int(losing_team.rating), losing_team.ranking)
+    winner_string =  "Congrats on beating %s! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())
+
+    if loser_submit:
+        print "loser_submit"
+        to_msg = winner_string
+        return_msg = loser_string
+        to_phone_number = winner.phone_number
+    else:
+        to_msg = loser_string
+        return_msg = winner_string
+        to_phone_number = loser.phone_number
+
+
 
     client.sms.messages.create(
-        to=str(loser.phone_number),
+        to=str(to_phone_number),
         from_=twilio_number,
-        body="You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username, league.name, int(losing_team.rating), losing_team.ranking))
+        body=to_msg)
 
     return HttpResponse(
-        createSmsResponse(
-            "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())))
+        createSmsResponse(return_msg
+           ))
 
 
 
