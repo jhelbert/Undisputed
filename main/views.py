@@ -70,6 +70,9 @@ def incoming_text(request):
     league_from_number = request.GET.get('league')
     print league_from_number
 
+    league = None
+    if league_from_number:
+        league = League.objects.get(shorthand_name=league_from_number)
 
     print "incoming text...."
 
@@ -99,7 +102,10 @@ def incoming_text(request):
         player = Player(phone_number=number)
         player.save()
         print "created"
-        return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format())
+        if league:
+            return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format(league.name))
+        else:
+            return HttpResponse(createSmsResponse("Welcome to Undisputed. Enter your initials.")
 
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
