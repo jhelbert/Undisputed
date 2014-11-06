@@ -109,7 +109,7 @@ def incoming_text(request):
         return handle_me(number)
     # options
     elif re.match("^options$",msg):
-        return HttpResponse(createSmsResponse("commands: \n  beat <player> \n  rankings\n  my stats")
+        return HttpResponse(createSmsResponse("commands: \n  beat <player> \n  rankings\n  my stats"))
         #return HttpResponse(createSmsResponse(options_query + options))
 
     elif re.match("^lost to [a-zA-z0-9_]+$", msg) and league_from_number:
