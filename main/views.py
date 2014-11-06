@@ -103,9 +103,9 @@ def incoming_text(request):
         player.save()
         print "created"
         if league:
-            return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format(league.name))
+            return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format(league.name)))
         else:
-            return HttpResponse(createSmsResponse("Welcome to Undisputed. Enter your initials.")
+            return HttpResponse(createSmsResponse("Welcome to Undisputed. Enter your initials."))
 
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
