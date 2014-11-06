@@ -66,12 +66,17 @@ stats = "my CompetitionName stats"
 
 @csrf_exempt
 def incoming_text(request):
+
+    league_from_number = request.GET.get('league')
+    print league_from_number
+
+
     print "incoming text...."
 
     number = request.GET.get('From')
     msg = request.GET.get('Body').lower().replace('\n', '')
     sections = msg.split(" ")
-    print 'number: ' + number 
+    print 'number: ' + number
     print 'message: ' + msg
 
     try:
@@ -82,8 +87,8 @@ def incoming_text(request):
         #     player.name = msg
         #     player.save()
         #     return HttpResponse(createSmsResponse("Hi, %s! Enter a username" % (player.name)))
-        
-        if not player.username:  
+
+        if not player.username:
             player.username = msg
             player.save()
             return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
@@ -105,13 +110,31 @@ def incoming_text(request):
     elif re.match("^options$",msg):
         return HttpResponse(createSmsResponse(options_query + options))
 
+    # team number
+
+    elif re.match("^beat [a-zA-z0-9_]+$", msg) and league_from_number:
+        sections.append("in")
+        sections.append(league_from_number)
+        return handle_win(number, sections)
+
     # beat opponent1 (and opponent2 with partner )in competition_name
     elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
         return handle_win(number, sections)
 
     # competition_name rankings
+    elif re.match("^rankings$", msg) and league_from_number:
+        sections = [league_from_number] + sections
+        return handle_rank(number,sections)
+
+    # competition_name rankings
     elif re.match("^[a-zA-z0-9_]+ rankings$", msg):
         return handle_rank(number,sections)
+
+    # my competition_name stats
+    elif re.match("^my stats$", msg) and league_from_number:
+        print 'hit stats handler'
+        sections = ['my', league_from_number, 'stats']
+        return handle_stats(number,sections)
 
     # my competition_name stats
     elif re.match("^my [a-zA-z0-9_]+( [a-zA-z0-9_]+)? stats$", msg):
@@ -134,7 +157,7 @@ def incoming_text(request):
 
      # create solo|partner|partnered league name password
     # TODO: league name multiple words?
-    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg): 
+    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg):
         print "create league"
         return handle_create_league(number, sections)
 
@@ -163,30 +186,30 @@ def handle_me(number):
     player = Player.objects.get(phone_number=number)
     text = "Name:%s\n" % player.name
     text += "username:%s\n" % player.username
-# sections[2] = username                                                                                                                                                                                 
-# " ".join(sections[3:]) = name                                                                                                                                                                          
+# sections[2] = username
+# " ".join(sections[3:]) = name
 def handle_join_undisputed(number, sections):
     username = sections[2]
     name = " ".join(sections[3:])
     print 'username: ' + username
     print 'name: ' + name
 
-    # checking if the account already exists                                                                                                                                                            
+    # checking if the account already exists
     try:
         player = Player.objects.get(phone_number=number)
-        # account exists                                                                                                                                                                          
+        # account exists
         return HttpResponse(createSmsResponse("You have already created an account with username %s" % player.username))
     except:
-        # account does not exist                                                                                                                                                                    
+        # account does not exist
         pass
 
-    # trying to make an account                                                                                                                                                                          
+    # trying to make an account
     try:
         existing_player = Player.objects.get(username=username)
-        # username taken                                                                                                                                                                            
+        # username taken
         return HttpResponse(createSmsResponse("username %s already taken, please try another one" % username))
     except:
-        # making account                                                                                                                               
+        # making account
         new_player = Player(name=name,username=username,phone_number=number)
         new_player.save()
         return HttpResponse(createSmsResponse("Welcome, here are your options:\n" + options))
@@ -194,7 +217,7 @@ def handle_join_undisputed(number, sections):
 def handle_stats(number, sections):
     # check if player is registered
     try:
-        user = Player.objects.get(phone_number=number) 
+        user = Player.objects.get(phone_number=number)
         # player is registered
     except:
         # player is not registered
@@ -204,7 +227,10 @@ def handle_stats(number, sections):
     competition_name = sections[1]
     print "competition_name:%s" % competition_name
     try:
-        competition = Competition.objects.get(name=competition_name)
+        try:
+            league = League.objects.get(shorthand_name=competition_name)
+        except:
+            league = League.objects.get(name=competition_name)
         # competition exists
     except:
         # competition does not exist
@@ -217,7 +243,7 @@ def handle_stats(number, sections):
         if user.username ==  team.members.username:
             user_team = team
             break
-    print "got teams"    
+    print "got teams"
     # the user's team does not exist
     if not user_team:
         return HttpResponse(createSmsResponse("You are not a registered team in " + competition_name + "."))
@@ -237,18 +263,16 @@ def handle_stats(number, sections):
     # build up the return string
     stats =  "Rank: %s / %s\n" % (user_team.ranking, len(teams))
     stats += "Rating: %s\n" % user_team.rating
-    stats += "Wins: %s\n" % user_team.wins
+    stats += "W: %s\t" % user_team.wins
     print "printing wins"
-    stats += "Losses: %s\n" % user_team.losses
+    stats += "L: %s\n" % user_team.losses
     print "current_streak b"
     stats += "Current Streak: %s %s\n" % (abs(user_team.current_streak), streak_suffix)
     print "current_streak a"
-    stats += "Longest Winning Streak: %s\n" % user_team.longest_win_streak
+    stats += "Longest Win Streak: %s\n" % user_team.longest_win_streak
     print "current_streak l"
-    stats += "Longest Losing Streak: %s\n" % user_team.longest_loss_streak
+    stats += "Longest Loss Streak: %s\n" % user_team.longest_loss_streak
     print "got stats"
-
-    stats += "Brought to you by Nike.\n Just do it"
     # stats for a competition
     return HttpResponse(createSmsResponse(stats))
 
@@ -258,7 +282,7 @@ def handle_rank(number, sections):
     print "ranking..."
     competition_name = sections[0]
 
-    # check if the user is registered                        
+    # check if the user is registered
     try:
         user = Player.objects.get(phone_number=number)
         # user is registered
@@ -346,8 +370,8 @@ def handle_win(number, sections):
         # loser1 does not exist
         return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
     print 'got lose'
-    
-    teams = Team.objects.filter(league=league)    
+
+    teams = Team.objects.filter(league=league)
 
     # check that message was not malformed
     if len(sections) != 4:
@@ -477,7 +501,7 @@ def player(request):
     for t in teams:
         get_last_ten_results(t)
 
-    return render_to_response('player.html', 
+    return render_to_response('player.html',
         {
             "player":player,
             "teams":teams
@@ -508,7 +532,7 @@ def home(request):
         teams = Team.objects.filter(competition=c).order_by("rating").all().reverse()
         rankings.append(teams)
     print rankings
-    return render_to_response('home.html', 
+    return render_to_response('home.html',
         {
             "competitions":competitions,
             "rankings":rankings
