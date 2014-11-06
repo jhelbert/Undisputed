@@ -91,7 +91,7 @@ def incoming_text(request):
         if not player.username:
             player.username = msg
             player.save()
-            return HttpResponse(createSmsResponse("{0}commands: \n beat <player> \nrankings\n my stats"))
+            return HttpResponse(createSmsResponse("{0}commands: \n  beat <player> \n  rankings\n  my stats"))
             return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
 
     except:
@@ -109,7 +109,8 @@ def incoming_text(request):
         return handle_me(number)
     # options
     elif re.match("^options$",msg):
-        return HttpResponse(createSmsResponse(options_query + options))
+        return HttpResponse(createSmsResponse("{0}commands: \n  beat <player> \n  rankings\n  my stats"))
+        #return HttpResponse(createSmsResponse(options_query + options))
 
     elif re.match("^lost to [a-zA-z0-9_]+$", msg) and league_from_number:
         sections = [sections[0], sections[2]]
