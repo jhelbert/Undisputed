@@ -13,7 +13,9 @@ class Player(models.Model):
 	name = models.CharField(max_length=30,null=True,blank=True)
 	request_pending = models.BooleanField()
 	def __unicode__(self):
-		return self.username
+		if self.username:
+			return self.username
+		return "No name"
 
 
 class League(models.Model):
