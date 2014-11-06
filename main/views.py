@@ -91,7 +91,7 @@ def incoming_text(request):
         if not player.username:
             player.username = msg
             player.save()
-            return HttpResponse(createSmsResponse("commands: \n beat <player> \nrankings\n my stats"))
+            return HttpResponse(createSmsResponse("{0}commands: \n beat <player> \nrankings\n my stats"))
             return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
 
     except:
@@ -99,7 +99,7 @@ def incoming_text(request):
         player = Player(phone_number=number)
         player.save()
         print "created"
-        return HttpResponse(createSmsResponse("Welcome to Undisputed. Enter your initials."))
+        return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format))
 
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
@@ -481,12 +481,12 @@ def handle_win(number, sections):
     # losing_team = Team.objects.get(league=league, username=losing_team.name)
     # print "got teams to report to"
     # in the case of a solo competition, send confirmation messages to both parties
-    """
+
     client.sms.messages.create(
         to=str(loser.phone_number),
         from_=twilio_number,
         body="You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username, existing_competition.name, int(losing_team.rating), losing_team.ranking))
-    """
+
     return HttpResponse(
         createSmsResponse(
             "Congrats! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())))
