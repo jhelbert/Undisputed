@@ -485,7 +485,7 @@ def handle_win(number, sections):
     client.sms.messages.create(
         to=str(loser.phone_number),
         from_=twilio_number,
-        body="You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username, existing_competition.name, int(losing_team.rating), losing_team.ranking))
+        body="You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username, league.name, int(losing_team.rating), losing_team.ranking))
 
     return HttpResponse(
         createSmsResponse(
