@@ -1,3 +1,4 @@
 *.pyc
 undisputed/*.pyc
 undisputed/main/migrations/*
+settings.py

@@ -49,3 +49,6 @@ class Result(models.Model):
 	winner = models.ForeignKey(Team, related_name="winner",null=True,blank=True)
 	loser = models.ForeignKey(Team, related_name="loser",null=True,blank=True)
 	time = models.DateTimeField()
+
+	# def __unicode__(self):
+	# 	return "{0} beat {1} at {2}".format(winner)

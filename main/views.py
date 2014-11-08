@@ -325,17 +325,16 @@ def handle_rank(number, sections):
     print rankings
     count = 0
     # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
-    for count in range(min(10, len(teams))):
+    for count in range(len(teams)):
         # TODO: add some defense against people with really long names
         # build up the next ranking entry
         team = teams[count]
         next_entry = '%s. %s (%s) %s-%s\n' % (count + 1, team.name.upper(), team.rating, team.wins, team.losses)
         print next_entry
         # if it fits, add it to the response string
-        if len(next_entry) + len(rankings) < 160:
-            rankings += next_entry
-        else:
-            break
+        #if len(next_entry) + len(rankings) < 160:
+        rankings += next_entry
+
     print "got rankings"
     return HttpResponse(createSmsResponse(rankings))
 
