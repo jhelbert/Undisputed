@@ -144,27 +144,6 @@ def handle_me(number):
     text += "username:%s\n" % player.username
 
 
-def handle_join_undisputed(number, sections):
-    username = sections[2]
-    name = " ".join(sections[3:])
-
-    # check if the account already exists
-    try:
-        player = Player.objects.get(phone_number=number)
-        return HttpResponse(createSmsResponse("You have already created an account with username %s" % player.username))
-    except:
-        pass
-
-    # trying to make an account
-    try:
-        existing_player = Player.objects.get(username=username)
-        # username taken
-        return HttpResponse(createSmsResponse("username %s already taken, please try another one" % username))
-    except:
-        # making account
-        new_player = Player.objects.create(name=name,username=username,phone_number=number)
-        return HttpResponse(createSmsResponse("Welcome, here are your options:\n" + options))
-
 def handle_stats(number, sections):
     # check if player is registered
     user = get_object(Player, phone_number=number)
