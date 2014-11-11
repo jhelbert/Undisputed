@@ -206,7 +206,6 @@ def handle_stats(number, sections):
 # sections[1] = competition name
 # sections[2] = partner username
 def handle_rank(number, sections):
-    print "ranking..."
     competition_name = sections[0]
 
     # check if the user is registered
@@ -299,13 +298,10 @@ def handle_win(number, sections, loser_submit=False):
         new_l_team.save()
         losing_team = new_l_team
 
-    # save the result
-    #Todo- add teams to results
+    # save the result and update the elo rankings
     new_result = Result.objects.create(league=league,time=datetime.now(),winner=winning_team,loser=losing_team)
-
-    # use Elo's algorithm to calculate the new ratings
-    calculate_elo_update(winning_team, losing_team)
-
+    new_result.update_elo()
+    
     # update each team's streaks
     winning_team.update_streak(True)
     losing_team.update_streak(False)
@@ -317,13 +313,12 @@ def handle_win(number, sections, loser_submit=False):
         team.ranking = rank
         team.save()
         rank += 1
-
     
     winning_team = Team.objects.get(name=winner.username)
     losing_team = Team.objects.get(name=loser.username)
 
+    # determine which messages to send to whom
     NOTIFICATIONS = False
-
     loser_string = "You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username.upper(), league.name, int(losing_team.rating), losing_team.ranking)
     winner_string =  "Congrats on beating %s! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())
 
@@ -336,7 +331,6 @@ def handle_win(number, sections, loser_submit=False):
         return_msg = winner_string
         to_phone_number = loser.phone_number
 
-
     if NOTIFICATIONS:
         client.sms.messages.create(
             to=str(to_phone_number),
@@ -345,25 +339,6 @@ def handle_win(number, sections, loser_submit=False):
         )
 
     return HttpResponse(createSmsResponse(return_msg))
-
-
-def calculate_elo_update(winning_team, losing_team):
-    ELO_SPREAD = 1000.0
-    ELO_VOLATILITY = 80.0
-
-    old_winner_rating = winning_team.rating
-    old_loser_rating = losing_team.rating
-
-    q_winner = 10**(old_winner_rating / ELO_SPREAD)
-    q_loser = 10**(old_loser_rating / ELO_SPREAD)
-    expected_winner = q_winner / (q_winner + q_loser)
-    expected_loser = q_loser / (q_winner + q_loser)
-
-    winning_team.rating = old_winner_rating + ELO_VOLATILITY * (1 - expected_winner)
-    losing_team.rating = old_loser_rating + ELO_VOLATILITY * (0 - expected_loser)
-
-    winning_team.save()
-    losing_team.save()
 
 
 
