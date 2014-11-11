@@ -27,8 +27,42 @@ class League(models.Model):
 	def __unicode__(self):
 		return self.name
 
+	def replay_results(self):
+		# initialize players to 2000
+		for team in self.teams.all():
+			print team
+			team.rating = 2000
+			team.save()
+		results = Result.objects.filter(league=self)
+		for result in results:
+			print result
+			self.calculate_elo_update(result.winner, result.loser)
+		
+		print results
+
+
+
+	def calculate_elo_update(self, winning_team, losing_team):
+		ELO_SPREAD = 1000.0
+		ELO_VOLATILITY = 80.0
+
+		old_winner_rating = winning_team.rating
+		old_loser_rating = losing_team.rating
+
+		q_winner = 10**(old_winner_rating / ELO_SPREAD)
+		q_loser = 10**(old_loser_rating / ELO_SPREAD)
+		expected_winner = q_winner / (q_winner + q_loser)
+		expected_loser = q_loser / (q_winner + q_loser)
+
+		winning_team.rating = old_winner_rating + ELO_VOLATILITY * (1 - expected_winner)
+		losing_team.rating = old_loser_rating + ELO_VOLATILITY * (0 - expected_loser)
+
+		winning_team.save()
+		losing_team.save()
+
+
 class Team(models.Model):
-	league = models.ForeignKey(League,null=True,blank=True)
+	league = models.ForeignKey(League,null=True,blank=True, related_name='teams')
 	competition = models.ForeignKey(Competition,null=True,blank=True)
 	name = models.CharField(max_length=20)
 	members = models.ForeignKey(Player,null=True,blank=True)

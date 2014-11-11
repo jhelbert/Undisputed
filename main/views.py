@@ -46,6 +46,12 @@ def get_object(model, **kwargs):
     except model.DoesNotExist:
         return None
 
+
+def replay_results():
+    league = League.objects.get(id=1)
+    league.replay_results()
+    return HttpResponse(createSmsResponse(COMMANDS_MSG))
+
 @csrf_exempt
 def incoming_text(request):
     league_from_number = request.GET.get('league')
@@ -74,6 +80,9 @@ def incoming_text(request):
 
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
+
+    if re.match('replay', msg):
+        return replay_results()
 
     if re.match("^me$",msg):
         return handle_me(number)
