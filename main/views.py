@@ -113,17 +113,9 @@ def incoming_text(request):
 
         return handle_stats(number,sections)
 
-     # create solo|partner|partnered league name password
-    # TODO: league name multiple words?
-    elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg):
-        return handle_create_league(number, sections)
+    # default unrecognized command    
+    return HttpResponse(createSmsResponse("Not recognized. Text 'options' to view your options."))
 
-    # join league_name password (with partner):
-    elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
-        return handle_join_league(number, sections)
-
-    else:
-        return HttpResponse(createSmsResponse("Not recognized. Text 'options' to view your options."))
 
 def createSmsResponse(responsestring):
     impl = getDOMImplementation()
@@ -166,9 +158,8 @@ def handle_join_undisputed(number, sections):
 
 def handle_stats(number, sections):
     # check if player is registered
-    try:
-        user = Player.objects.get(phone_number=number)
-    except:
+    user = get_object(Player, phone_number=number)
+    if not user:
         return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
 
     # check if competition exists
@@ -224,7 +215,6 @@ def handle_rank(number, sections):
         league = League.objects.get(name=competition_name)
     teams = Team.objects.filter(league=league).order_by("rating").all().reverse()
 
-    print "get rankings for a solo competition"
     present = False
     for team in teams:
         if user.username == team.members.username:
@@ -234,10 +224,7 @@ def handle_rank(number, sections):
     if not present:
         return HttpResponse(createSmsResponse("You are not registered in %s. Please try again." % competition_name))
 
-    print "build up a string of rankings to return"
-    print league
     rankings = "{0} Rankings\n".format(str(league))
-    print rankings
     count = 0
     # return rankings for at most 10 teams, while making sure that we don't exceed the twilio character limit
     for count in range(len(teams)):
@@ -245,20 +232,14 @@ def handle_rank(number, sections):
         # build up the next ranking entry
         team = teams[count]
         next_entry = '%s. %s (%s) %s-%s\n' % (count + 1, team.name.upper(), team.rating, team.wins, team.losses)
-        print next_entry
-        # if it fits, add it to the response string
-        #if len(next_entry) + len(rankings) < 160:
         rankings += next_entry
 
-    print "got rankings"
     return HttpResponse(createSmsResponse(rankings))
 
-# beat opponent1 (and opponent2 with partner )in competition_name
+
+# beat opponent1
 # sections[1] = loser1
 # sections[-1] = competition name
-# if partnered:
-#    sections[3] = loser2
-#    sections[5] = partner
 def handle_win(number, sections, loser_submit=False):
     # check that both players exist in system    
     winner = get_object(Player, phone_number=number)
@@ -351,12 +332,10 @@ def handle_win(number, sections, loser_submit=False):
         client.sms.messages.create(
             to=str(to_phone_number),
             from_=TWILIO_NUMBER,
-            body=to_msg)
+            body=to_msg
+        )
 
-    return HttpResponse(
-        createSmsResponse(return_msg
-           ))
-
+    return HttpResponse(createSmsResponse(return_msg))
 
 
 def calculate_elo_update(winning_team, losing_team):
