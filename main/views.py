@@ -1,5 +1,13 @@
-# Create your views here.
+import re, os, cgi, hashlib, urllib2, json, base64, hmac, hmac, sha
+from subprocess import *
+from datetime import *
+from random import choice
+
 import twilio.twiml
+from twilio.rest import TwilioRestClient
+
+from main.models import Player, Team, Result, Competition, League
+import settings
 
 from django.template import Context, loader
 from django.http import HttpResponse
@@ -7,101 +15,58 @@ from django.core.context_processors import csrf
 from django.shortcuts import render_to_response
 from django import forms
 from django.template import RequestContext
-
 from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate,login, logout
 from django.http import HttpResponseRedirect
 from django.db.models import Q
 from django.core.exceptions import ValidationError
-
 from django.core.files.base import ContentFile
-from django.core.mail import send_mail
-import base64
-import hmac, sha
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import F
 from django.contrib import auth
-from django.core.mail import send_mail
-from django.core.mail import EmailMessage
+from django.core.mail import send_mail, EmailMessage
 
-from subprocess import *
-from datetime import *
 from xml.dom.minidom import getDOMImplementation,parse,parseString
-from main.models import Player, Team, Result, Competition, League
-from random import choice
-import re
-import os
-import cgi
-import hashlib
-import urllib2
-import json
-import base64
-import hmac
-import settings
 
-from twilio.rest import TwilioRestClient
 
 # twilio account information
-account_sid = "AC4854286859444a07a57dfdc44c8eecea"
-auth_token = "e0f79b613153fb5b2525f7552ef8cd1f"
-twilio_number = "+19786730440"
+TWILIO_ACCOUNT_SID = "AC4854286859444a07a57dfdc44c8eecea"
+TWILIO_AUTH_TOKEN = "e0f79b613153fb5b2525f7552ef8cd1f"
+TWILIO_NUMBER = "+19786730440"
 
 # client used to send messages
-client = TwilioRestClient(account_sid, auth_token)
+client = TwilioRestClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
-options_query = "What would you like to do?:\n"
-options =  "(a) Join Undisputed\n"
-options += "(b) Report Win\n"
-options += "(c) View Rankings\n"
-options += "(d) View Personal Stats\n"
+COMMANDS_MSG = "commands: \n  beat <player> \n lost to <player> \n  rankings\n  my stats"
 
-join = "join undisputed username:MyUsername name:MyFirstName MyLastName"
-
-report = "beat OpponentUsername in CompetitionName"
-
-rankings = "CompetitionName rankings"
-
-stats = "my CompetitionName stats"
+def get_object(model, **kwargs):
+    try:
+        return model.objects.get(**kwargs)
+    except model.DoesNotExist:
+        return None
 
 @csrf_exempt
 def incoming_text(request):
-
     league_from_number = request.GET.get('league')
-    print league_from_number
 
     league = None
     if league_from_number:
         league = League.objects.get(shorthand_name=league_from_number)
 
-    print "incoming text...."
-
     number = request.GET.get('From')
     msg = request.GET.get('Body').lower().replace('\n', '')
     sections = msg.split(" ")
-    print 'number: ' + number
-    print 'message: ' + msg
 
     try:
         player = Player.objects.get(phone_number=number)
-
-        # ###
-        # if not player.name:
-        #     player.name = msg
-        #     player.save()
-        #     return HttpResponse(createSmsResponse("Hi, %s! Enter a username" % (player.name)))
-
         if not player.username:
             player.username = msg
             player.save()
-            return HttpResponse(createSmsResponse("commands: \n  beat <player> \n  rankings\n  my stats"))
-            #return HttpResponse(createSmsResponse("You're all set up!\n" + options_query + options))
-
+            return HttpResponse(createSmsResponse(COMMANDS_MSG))
     except:
-        print "creating new player"
         player = Player(phone_number=number)
         player.save()
-        print "created"
         if league:
             return HttpResponse(createSmsResponse("Welcome to {0} on Undisputed. Enter your initials.".format(league.name)))
         else:
@@ -110,23 +75,18 @@ def incoming_text(request):
     # join undisputed username firstname lastname
     # TODO- all other valid characters, regex check on each section
 
-
     if re.match("^me$",msg):
         return handle_me(number)
     # options
     elif re.match("^options$",msg):
-        return HttpResponse(createSmsResponse("commands: \n  beat <player> \n  rankings\n  my stats"))
-        #return HttpResponse(createSmsResponse(options_query + options))
+        return HttpResponse(createSmsResponse(COMMANDS_MSG))
 
     elif re.match("^lost to [a-zA-z0-9_]+$", msg) and league_from_number:
-        sections = [sections[0], sections[2]]
-        sections.append("in")
-        sections.append(league_from_number)
+        sections = [sections[0], sections[2], "in", league_from_number]
         return handle_win(number, sections, True)
 
     elif re.match("^beat [a-zA-z0-9_]+$", msg) and league_from_number:
-        sections.append("in")
-        sections.append(league_from_number)
+        sections = sections + ["in", league_from_number]
         return handle_win(number, sections)
 
     # beat opponent1 (and opponent2 with partner )in competition_name
@@ -144,43 +104,26 @@ def incoming_text(request):
 
     # my competition_name stats
     elif re.match("^my stats$", msg) and league_from_number:
-        print 'hit stats handler'
         sections = ['my', league_from_number, 'stats']
         return handle_stats(number,sections)
 
     # my competition_name stats
     elif re.match("^my [a-zA-z0-9_]+( [a-zA-z0-9_]+)? stats$", msg):
-        print 'hit stats handler'
         sections = msg.split(" ")
 
         return handle_stats(number,sections)
 
-    elif re.match("^(?i)a$", msg):
-        return HttpResponse(createSmsResponse(join))
-
-    elif re.match("^(?i)b$", msg):
-        return HttpResponse(createSmsResponse(report))
-
-    elif re.match("^(?i)c$", msg):
-        return HttpResponse(createSmsResponse('CompetitonName rankings'))
-
-    elif re.match("^(?i)d$", msg):
-        return HttpResponse(createSmsResponse("my CompetitionName stats"))
-
      # create solo|partner|partnered league name password
     # TODO: league name multiple words?
     elif re.match("^create (solo|partnered|partner) league [a-zA-Z0-9_]+ [a-zA-Z0-9_]+$", msg):
-        print "create league"
         return handle_create_league(number, sections)
 
     # join league_name password (with partner):
     elif re.match("^join [a-zA-Z0-9_]+ [a-zA-Z0-9_]+( with [a-zA-Z ]+)?$",msg):
-        print "joining league....."
         return handle_join_league(number, sections)
 
-
     else:
-        return HttpResponse(createSmsResponse("Text 'options' to view your options."))
+        return HttpResponse(createSmsResponse("Not recognized. Text 'options' to view your options."))
 
 def createSmsResponse(responsestring):
     impl = getDOMImplementation()
@@ -198,21 +141,17 @@ def handle_me(number):
     player = Player.objects.get(phone_number=number)
     text = "Name:%s\n" % player.name
     text += "username:%s\n" % player.username
-# sections[2] = username
-# " ".join(sections[3:]) = name
+
+
 def handle_join_undisputed(number, sections):
     username = sections[2]
     name = " ".join(sections[3:])
-    print 'username: ' + username
-    print 'name: ' + name
 
-    # checking if the account already exists
+    # check if the account already exists
     try:
         player = Player.objects.get(phone_number=number)
-        # account exists
         return HttpResponse(createSmsResponse("You have already created an account with username %s" % player.username))
     except:
-        # account does not exist
         pass
 
     # trying to make an account
@@ -222,69 +161,45 @@ def handle_join_undisputed(number, sections):
         return HttpResponse(createSmsResponse("username %s already taken, please try another one" % username))
     except:
         # making account
-        new_player = Player(name=name,username=username,phone_number=number)
-        new_player.save()
+        new_player = Player.objects.create(name=name,username=username,phone_number=number)
         return HttpResponse(createSmsResponse("Welcome, here are your options:\n" + options))
 
 def handle_stats(number, sections):
     # check if player is registered
     try:
         user = Player.objects.get(phone_number=number)
-        # player is registered
     except:
-        # player is not registered
         return HttpResponse(createSmsResponse("You aren't on Undisputed. To join:\n join undisputed MyUsername MyFirstName MyLastName"))
 
     # check if competition exists
     competition_name = sections[1]
-    print "competition_name:%s" % competition_name
     try:
         try:
             league = League.objects.get(shorthand_name=competition_name)
         except:
             league = League.objects.get(name=competition_name)
-        # competition exists
     except:
-        # competition does not exist
         return HttpResponse(createSmsResponse(competition_name + " does not exist. Please try again."))
-    print "got competition"
+
     teams = Team.objects.filter(league=league).all()
-    print teams
-    user_team = None
-    for team in teams:
-        if user.username ==  team.members.username:
-            user_team = team
-            break
-    print "got teams"
+
+    user_team = get_object(Team, name=user.username)
+            
     # the user's team does not exist
     if not user_team:
         return HttpResponse(createSmsResponse("You are not a registered team in " + competition_name + "."))
-    print 'registed team'
-    # determine the suffix for the win streak
 
-    if user_team.current_streak > 1 or not user_team.current_streak:
-        streak_suffix = "wins"
-        print "wins suffix"
-    elif user_team.current_streak == 1:
-        streak_suffix = "win"
-    elif user_team.current_streak == -1:
-        streak_suffix = "loss"
-    else:
-        streak_suffix = "losses"
-    print "got streak suffix"
+    # determine the suffix for the win streak
+    
+
     # build up the return string
     stats =  "Rank: %s / %s\n" % (user_team.ranking, len(teams))
     stats += "Rating: %s\n" % user_team.rating
     stats += "W: %s\t" % user_team.wins
-    print "printing wins"
     stats += "L: %s\n" % user_team.losses
-    print "current_streak b"
-    stats += "Current Streak: %s %s\n" % (abs(user_team.current_streak), streak_suffix)
-    print "current_streak a"
+    stats += "Current Streak: %s %s\n" % (abs(user_team.current_streak), user_team.streak_suffix())
     stats += "Longest Win Streak: %s\n" % user_team.longest_win_streak
-    print "current_streak l"
     stats += "Longest Loss Streak: %s\n" % user_team.longest_loss_streak
-    print "got stats"
     # stats for a competition
     return HttpResponse(createSmsResponse(stats))
 
@@ -345,37 +260,24 @@ def handle_rank(number, sections):
 #    sections[3] = loser2
 #    sections[5] = partner
 def handle_win(number, sections, loser_submit=False):
-    # check if the user is registered
-    try:
-        winner = Player.objects.get(phone_number=number)
-        # user is registered
-        print "winner: %s" % winner.username
-    except:
-        # user is not registered
-        return HttpResponse(createSmsResponse("Join Undisputed by texting: join undisputed MyUsername MyFirstName MyLastName"))
+    # check that both players exist in system    
+    winner = get_object(Player, phone_number=number)
+    if not winner:
+        return HttpResponse(createSmsResponse("Join Undisputed first"))
+
+    loser_username = sections[1]
+    loser = get_object(Player, username=loser_username)
+    if not loser:
+        return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
 
 
     # check if the result is just a competition
     competition_name = sections[-1]
-    print "competition_nameaa:%s" % competition_name
-    try:
-        try:
-            league = League.objects.get(shorthand_name=competition_name)
-        except:
-            league = League.objects.get(name=competition_name)
-        print league
-    except NameError as e:
-        print e.strerror
-
-    loser_username = sections[1]
-
-    try:
-        loser = Player.objects.get(username=loser_username)
-        # loser1 exists
-    except:
-        # loser1 does not exist
-        return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
-
+    league = get_object(League, shorthand_name=competition_name)
+    if not league:
+        league = get_object(League, name=competition_name)
+    
+    # if this flag is true, swap
     if loser_submit:
         temp = winner
         winner = loser
@@ -385,17 +287,14 @@ def handle_win(number, sections, loser_submit=False):
 
     # check that message was not malformed
     if len(sections) != 4:
-        #TODO: implement this
         return HttpResponse(createSmsResponse('multiperson teams and multiword competitions not implemented yet'))
 
-    # search for winner's team
-    winning_team = None
-
-    winning_team = Team.objects.get(name=winner.username)
-    losing_team = Team.objects.get(name=loser.username)
+    # search for existing teams
+    winning_team = get_object(Team, name=winner.username)
+    losing_team = get_object(Team, name=loser.username)
 
     if not winning_team:
-        new_team = Team(league=league,rating=2000,ranking=100)
+        new_team = Team(league=league,rating=2000,ranking=100, name=winner.username)
         new_team.members = winner
         new_team.name = winner.username
         new_team.save()
@@ -412,55 +311,17 @@ def handle_win(number, sections, loser_submit=False):
 
     # save the result
     #Todo- add teams to results
-    new_result = Result(league=league,time=datetime.now(),winner=winning_team,loser=losing_team)
-
-    new_result.save()
+    new_result = Result.objects.create(league=league,time=datetime.now(),winner=winning_team,loser=losing_team)
 
     # use Elo's algorithm to calculate the new ratings
-    old_winner_rating = winning_team.rating
-    old_loser_rating = losing_team.rating
+    calculate_elo_update(winning_team, losing_team)
 
-    spread = 1000.0
-    volatility = 80.0
-
-    q_winner = 10**(old_winner_rating/spread)
-    q_loser = 10**(old_loser_rating/spread)
-    expected_winner = q_winner / (q_winner + q_loser)
-    expected_loser = q_loser / (q_winner + q_loser)
-
-    new_winner_rating = old_winner_rating + volatility * (1 - expected_winner)
-    new_loser_rating = old_loser_rating + volatility * (0 - expected_loser)
-
-    winning_team.rating = new_winner_rating
-    losing_team.rating = new_loser_rating
-
-    # update win-loss counts
-    winning_team.wins += 1
-    losing_team.losses += 1
-
-    # update streak records for the winning team
-    if winning_team.current_streak > 0:
-        winning_team.current_streak += 1
-    else:
-        winning_team.current_streak = 1
-
-    winning_team.longest_win_streak = max(winning_team.longest_win_streak,winning_team.current_streak)
-
-    # update streak records for the losing team
-    if losing_team.current_streak < 0:
-        losing_team.current_streak -= 1
-    else:
-        losing_team.current_streak = -1
-
-    losing_team.longest_loss_streak = min(losing_team.longest_loss_streak,losing_team.current_streak)
-
-    # save the new stats
-    winning_team.save()
-    losing_team.save()
+    # update each team's streaks
+    winning_team.update_streak(True)
+    losing_team.update_streak(False)
 
     # use the new ratings to calculate new rankings
     teams = Team.objects.filter(league=league).order_by("rating").all().reverse()
-    print teams
     rank = 1
     for team in teams:
         team.ranking = rank
@@ -476,10 +337,7 @@ def handle_win(number, sections, loser_submit=False):
     loser_string = "You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username.upper(), league.name, int(losing_team.rating), losing_team.ranking)
     winner_string =  "Congrats on beating %s! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())
 
-
-
     if loser_submit:
-        print "loser_submit"
         to_msg = winner_string
         return_msg = loser_string
         to_phone_number = winner.phone_number
@@ -492,7 +350,7 @@ def handle_win(number, sections, loser_submit=False):
     if NOTIFICATIONS:
         client.sms.messages.create(
             to=str(to_phone_number),
-            from_=twilio_number,
+            from_=TWILIO_NUMBER,
             body=to_msg)
 
     return HttpResponse(
@@ -500,6 +358,24 @@ def handle_win(number, sections, loser_submit=False):
            ))
 
 
+
+def calculate_elo_update(winning_team, losing_team):
+    ELO_SPREAD = 1000.0
+    ELO_VOLATILITY = 80.0
+
+    old_winner_rating = winning_team.rating
+    old_loser_rating = losing_team.rating
+
+    q_winner = 10**(old_winner_rating / ELO_SPREAD)
+    q_loser = 10**(old_loser_rating / ELO_SPREAD)
+    expected_winner = q_winner / (q_winner + q_loser)
+    expected_loser = q_loser / (q_winner + q_loser)
+
+    winning_team.rating = old_winner_rating + ELO_VOLATILITY * (1 - expected_winner)
+    losing_team.rating = old_loser_rating + ELO_VOLATILITY * (0 - expected_loser)
+
+    winning_team.save()
+    losing_team.save()
 
 
 
@@ -532,6 +408,7 @@ def get_last_ten_results(team):
                 break
     team.save()
 
+
 def home(request):
     competitions = Competition.objects.all()
     rankings = []
@@ -539,14 +416,9 @@ def home(request):
         competition_ranking = []
         teams = Team.objects.filter(competition=c).order_by("rating").all().reverse()
         rankings.append(teams)
-    print rankings
     return render_to_response('home.html',
         {
             "competitions":competitions,
             "rankings":rankings
-
         },
-        context_instance=RequestContext(request))# Create your views here.
-
-
-
+        context_instance=RequestContext(request))
