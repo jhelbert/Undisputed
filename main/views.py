@@ -56,6 +56,7 @@ def replay_results():
 def incoming_text(request):
     league_from_number = request.GET.get('league')
 
+    is_global_request = True
     league = None
     if league_from_number:
         league = League.objects.get(shorthand_name=league_from_number)
@@ -94,9 +95,14 @@ def incoming_text(request):
         sections = [sections[0], sections[2], "in", league_from_number]
         return handle_win(number, sections, True)
 
-    elif re.match("^beat [a-zA-z0-9_]+$", msg) and league_from_number:
+    elif re.match("^beat [a-zA-z0-9_]+$", msg):
         sections = sections + ["in", league_from_number]
-        return handle_win(number, sections)
+        if not league_from_number:
+            print 'GLOBAL RESULT'
+            return handle_global_win(number, sections)
+        else:
+            print "LEAGUE RESULT"
+            return handle_win(number, sections)
 
     # beat opponent1 (and opponent2 with partner )in competition_name
     elif re.match("^beat [a-zA-z0-9_]+ (and [a-zA-z0-9_]+ with [a-zA-z0-9_]+ )?in [a-zA-z0-9_]+$", msg):
@@ -224,35 +230,48 @@ def handle_rank(number, sections):
     return HttpResponse(createSmsResponse(rankings))
 
 
+def handle_global_win(number, sections, loser_submit=False):
+    print '-1'
+    return handle_win(number, sections, False, True)
+
 # beat opponent1
 # sections[1] = loser1
 # sections[-1] = competition name
-def handle_win(number, sections, loser_submit=False):
+def handle_win(number, sections, loser_submit=False, is_only_global=False):
     # check that both players exist in system    
     winner = get_object(Player, phone_number=number)
     if not winner:
         return HttpResponse(createSmsResponse("Join Undisputed first"))
 
+    print '0'
     loser_username = sections[1]
     loser = get_object(Player, username=loser_username)
     if not loser:
         return HttpResponse(createSmsResponse(loser_username + " does not exist. Please try again."))
 
-
+    print '1'
     # check if the result is just a competition
-    competition_name = sections[-1]
-    league = get_object(League, shorthand_name=competition_name)
-    if not league:
-        league = get_object(League, name=competition_name)
-    
+    if is_only_global:
+        league = None
+    else:
+        competition_name = sections[-1]
+        league = get_object(League, shorthand_name=competition_name)
+        if not league:
+            league = get_object(League, name=competition_name)
+
+    print '2'
     # if this flag is true, swap
     if loser_submit:
         temp = winner
         winner = loser
         loser = temp
 
-    teams = Team.objects.filter(league=league)
+    if is_only_global:
+        teams = Team.objects.all()
+    else:
+        teams = Team.objects.filter(league=league)
 
+    print '3'
     # check that message was not malformed
     if len(sections) != 4:
         return HttpResponse(createSmsResponse('multiperson teams and multiword competitions not implemented yet'))
@@ -261,6 +280,7 @@ def handle_win(number, sections, loser_submit=False):
     winning_team = get_object(Team, name=winner.username)
     losing_team = get_object(Team, name=loser.username)
 
+    print '4'
     if not winning_team:
         new_team = Team(league=league,rating=2000,ranking=100, name=winner.username)
         new_team.members = winner
@@ -268,19 +288,24 @@ def handle_win(number, sections, loser_submit=False):
         new_team.save()
         winning_team = new_team
 
+
     # search for the loser's team
 
     if not losing_team:
+        print '4b'
         new_l_team = Team(league=league,rating=2000, ranking=100)
         new_l_team.members = loser
         new_l_team.name = loser.username
         new_l_team.save()
         losing_team = new_l_team
 
+
     # save the result and update the elo rankings
+    print '5'
     new_result = Result.objects.create(league=league,time=datetime.now(),winner=winning_team,loser=losing_team)
+    print '6'
     new_result.update_elo()
-    
+    print '7'
     # update each team's streaks
     winning_team.update_streak(True)
     losing_team.update_streak(False)
@@ -298,8 +323,13 @@ def handle_win(number, sections, loser_submit=False):
 
     # determine which messages to send to whom
     NOTIFICATIONS = False
-    loser_string = "You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username.upper(), league.name, int(losing_team.rating), losing_team.ranking)
-    winner_string =  "Congrats on beating %s! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())
+    if league:
+        loser_string = "You were defeated by %s in %s. Your new in-league rating is %s and you are ranked %s" % (winner.username.upper(), league.name, int(losing_team.rating), losing_team.ranking)
+        winner_string =  "Congrats on beating %s! Your new in-league rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())
+
+    else:
+        loser_string = "You were defeated by %s. Your new global rating is %s" % (winner.username.upper(), int(losing_team.global_rating))
+        winner_string =  "Congrats on beating %s! Your new global rating is %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.global_rating), loser.username.upper())
 
     if loser_submit:
         to_msg = winner_string

@@ -9,6 +9,9 @@ class Competition(models.Model):
 	def __unicode__(self):
 		return self.name
 
+	def replay_all_results(self):
+		pass
+
 class Player(models.Model):
 	username = models.CharField(max_length=30,null=True,blank=True)
 	phone_number = models.CharField(max_length=20)
@@ -98,40 +101,41 @@ class Team(models.Model):
 			return "losses"
 
 class Result(models.Model):
-	league = models.ForeignKey(League)
+	league = models.ForeignKey(League, null=True, blank=True)
 	winner = models.ForeignKey(Team, related_name="winner",null=True,blank=True)
 	loser = models.ForeignKey(Team, related_name="loser",null=True,blank=True)
 	time = models.DateTimeField()
 
-	def update_elo(self, global_update=False):
+	def update_elo(self):
 		ELO_SPREAD = 1000.0
 		ELO_VOLATILITY = 80.0
 
-		if global_update:
-			winner_rating = self.winner.global_rating
-			loser_rating = self.loser.global_rating
-		else:
-			winner_rating = self.winner.rating  
-			loser_rating = self.loser.rating
-
+		# first update global ranking no matter what
+		print 'a1'
+		winner_rating = self.winner.global_rating
+		loser_rating = self.loser.global_rating
 		q_winner = 10**(winner_rating / ELO_SPREAD)
 		q_loser = 10**(loser_rating / ELO_SPREAD)
 		expected_winner = q_winner / (q_winner + q_loser)
 		expected_loser = q_loser / (q_winner + q_loser)
-
-		# update step
-		if global_update:
-			self.winner.global_rating = winner_rating + ELO_VOLATILITY * (1 - expected_winner)
-			self.loser.global_rating = loser_rating + ELO_VOLATILITY * (0 - expected_loser)
-		else:
+		self.winner.global_rating = winner_rating + ELO_VOLATILITY * (1 - expected_winner)
+		self.loser.global_rating = loser_rating + ELO_VOLATILITY * (0 - expected_loser)
+		print 'a2'
+		# if result is member of specific league, update league rating as well
+		if self.league is not None:
+			print 'B'
+			winner_rating = self.winner.rating  
+			loser_rating = self.loser.rating
+			q_winner = 10**(winner_rating / ELO_SPREAD)
+			q_loser = 10**(loser_rating / ELO_SPREAD)
+			expected_winner = q_winner / (q_winner + q_loser)
+			expected_loser = q_loser / (q_winner + q_loser)	
 			self.winner.rating = winner_rating + ELO_VOLATILITY * (1 - expected_winner)
 			self.loser.rating = loser_rating + ELO_VOLATILITY * (0 - expected_loser)
-
+		print 'a3'
 		self.winner.save()
 		self.loser.save()
-
-		if not global_update:
-			self.update_elo(global_update=True)
+		print 'a4'
 
 	def __unicode__(self):
  		return "{0} beat {1} - {2}".format(self.winner, self.loser, self.time)
