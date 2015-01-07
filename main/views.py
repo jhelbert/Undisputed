@@ -33,7 +33,7 @@ from xml.dom.minidom import getDOMImplementation,parse,parseString
 # twilio account information
 TWILIO_ACCOUNT_SID = "AC4854286859444a07a57dfdc44c8eecea"
 TWILIO_AUTH_TOKEN = "e0f79b613153fb5b2525f7552ef8cd1f"
-TWILIO_NUMBER = "+19786730440"
+
 
 # client used to send messages
 client = TwilioRestClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -184,13 +184,13 @@ def handle_stats(number, sections):
     teams = Team.objects.filter(league=league).all()
 
     user_team = get_object(Team, name=user.username)
-            
+
     # the user's team does not exist
     if not user_team:
         return HttpResponse(createSmsResponse("You are not a registered team in " + competition_name + "."))
 
     # determine the suffix for the win streak
-    
+
 
     # build up the return string
     stats =  "Rank: %s / %s\n" % (user_team.ranking, len(teams))
@@ -260,7 +260,7 @@ def handle_rank(number, sections):
 #    sections[3] = loser2
 #    sections[5] = partner
 def handle_win(number, sections, loser_submit=False):
-    # check that both players exist in system    
+    # check that both players exist in system
     winner = get_object(Player, phone_number=number)
     if not winner:
         return HttpResponse(createSmsResponse("Join Undisputed first"))
@@ -276,7 +276,7 @@ def handle_win(number, sections, loser_submit=False):
     league = get_object(League, shorthand_name=competition_name)
     if not league:
         league = get_object(League, name=competition_name)
-    
+
     # if this flag is true, swap
     if loser_submit:
         temp = winner
@@ -328,11 +328,11 @@ def handle_win(number, sections, loser_submit=False):
         team.save()
         rank += 1
 
-    
+
     winning_team = Team.objects.get(name=winner.username)
     losing_team = Team.objects.get(name=loser.username)
 
-    NOTIFICATIONS = False
+    NOTIFICATIONS = True
 
     loser_string = "You were defeated by %s in %s. Your new rating is %s and you are ranked %s" % (winner.username.upper(), league.name, int(losing_team.rating), losing_team.ranking)
     winner_string =  "Congrats on beating %s! Your new rating is %s and you are ranked #%s in %s. A notification was sent to %s." % (loser.username.upper(), int(winning_team.rating), int(winning_team.ranking), winning_team.league.name, loser.username.upper())
@@ -346,6 +346,10 @@ def handle_win(number, sections, loser_submit=False):
         return_msg = winner_string
         to_phone_number = loser.phone_number
 
+    if competition_name == "ksfifa":
+        TWILIO_NUMBER = "+19786730440"
+    elif competition_name == "kspingpong":
+        TWILIO_NUMBER = "+14793163917"
 
     if NOTIFICATIONS:
         client.sms.messages.create(
